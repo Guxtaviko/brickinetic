@@ -88,7 +88,6 @@ function ModelScene({
 	src,
 	center,
 	edges,
-	second,
 	motion,
 	positionX,
 	rotationY,
@@ -98,7 +97,6 @@ function ModelScene({
 	src: string
 	center: boolean
 	edges: boolean
-	second: boolean
 	motion: MotionConfig
 	positionX: number
 	rotationY: number
@@ -106,7 +104,6 @@ function ModelScene({
 	onReady: () => void
 }) {
 	const primary = useRef<Group>(null)
-	const secondary = useRef<Group>(null)
 	const { camera, gl, invalidate, frameloop, size } = useThree()
 	const controlsRef = useRef<OrbitControls | null>(null)
 	const [guideSize, setGuideSize] = useState(30)
@@ -132,19 +129,6 @@ function ModelScene({
 		if (!controls || !primary.current || !(camera instanceof PerspectiveCamera))
 			return
 		const bounds = new Box3().setFromObject(primary.current)
-		const first = bounds.getBoundingSphere(new Sphere())
-		if (secondary.current) {
-			secondary.current.position.set(0, 0, 0)
-			const other = new Box3()
-				.setFromObject(secondary.current)
-				.getBoundingSphere(new Sphere())
-			secondary.current.position.set(
-				first.center.x - other.center.x + (first.radius + other.radius) * 1.2,
-				first.center.y - other.center.y,
-				first.center.z - other.center.z,
-			)
-			bounds.union(new Box3().setFromObject(secondary.current))
-		}
 		const sphere = bounds.getBoundingSphere(new Sphere())
 		const radius = Math.max(sphere.radius, 1)
 		const vertical = (camera.fov * Math.PI) / 360
@@ -160,13 +144,12 @@ function ModelScene({
 		controls.minDistance = radius * 0.25
 		controls.maxDistance = distance * 5
 		controls.update()
-		setGuideSize((first.radius * 0.75) / scale)
+		setGuideSize((sphere.radius * 0.75) / scale)
 		invalidate()
 		onReady()
 		// Transform sliders intentionally do not reset a user's orbit on every edit.
 	}, [
 		src,
-		second,
 		center,
 		camera,
 		invalidate,
@@ -175,11 +158,6 @@ function ModelScene({
 		size.height,
 	])
 	const rotation: [number, number, number] = [0, (rotationY * Math.PI) / 180, 0]
-	const secondMotion: MotionConfig = {
-		...motion,
-		float: motion.float && { ...motion.float, speed: 0.45 },
-		spin: motion.spin && { ...motion.spin, speed: -0.12 },
-	}
 	return (
 		<>
 			<group ref={primary} name='inspection-primary'>
@@ -193,18 +171,6 @@ function ModelScene({
 					scale={scale}
 				/>
 			</group>
-			{second && (
-				<group ref={secondary} name='inspection-secondary'>
-					<BrickModel
-						src={src}
-						center={center}
-						edges={false}
-						motion={secondMotion}
-						rotation={rotation}
-						scale={scale * 0.65}
-					/>
-				</group>
-			)}
 			<group position={[positionX, 0, 0]} rotation={rotation} scale={scale}>
 				<axesHelper args={[guideSize]} />
 			</group>
@@ -307,7 +273,6 @@ export default function App() {
 	const [status, setStatus] = useState('Loading model and parts')
 	const [center, setCenter] = useState(true)
 	const [edges, setEdges] = useState(true)
-	const [second, setSecond] = useState(false)
 	const [floatEnabled, setFloatEnabled] = useState(true)
 	const [spinEnabled, setSpinEnabled] = useState(true)
 	const [floatAxis, setFloatAxis] = useState<Axis>('y')
@@ -410,7 +375,6 @@ export default function App() {
 											src={src}
 											center={center}
 											edges={edges}
-											second={second}
 											motion={motion}
 											positionX={positionX}
 											rotationY={rotationY}
@@ -580,15 +544,6 @@ export default function App() {
 							onChange={setCenter}
 						/>
 						<Toggle label='Edge lines' checked={edges} onChange={setEdges} />
-						<Toggle
-							label='Second instance'
-							checked={second}
-							onChange={setSecond}
-						/>
-						<p className='hint'>
-							Second instance follows the selected axes with its own speeds;
-							edges off.
-						</p>
 						<label className='select-row'>
 							Reduced motion
 							<select
