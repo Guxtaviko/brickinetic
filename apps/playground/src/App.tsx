@@ -1,7 +1,7 @@
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { BrickModel } from 'brickinetic'
 import type { ErrorInfo, FormEvent, ReactNode } from 'react'
-import { Component, Suspense, useCallback, useEffect, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import '@/styles/globals.css'
 
@@ -54,14 +54,21 @@ class ModelErrorBoundary extends Component<
 
 function Controls() {
 	const { camera, gl } = useThree()
+	const controlsRef = useRef<OrbitControls | null>(null)
+	useFrame(() => controlsRef.current?.update())
 	useEffect(() => {
 		const controls = new OrbitControls(camera, gl.domElement)
+		controlsRef.current = controls
 		controls.enableDamping = true
 		controls.enablePan = false
 		controls.minDistance = 180
 		controls.maxDistance = 700
-		controls.target.set(50, 0, 0)
-		return () => controls.dispose()
+		controls.target.set(0, 0, 0)
+		controls.update()
+		return () => {
+			controlsRef.current = null
+			controls.dispose()
+		}
 	}, [camera, gl])
 	return null
 }
