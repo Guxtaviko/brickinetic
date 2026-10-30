@@ -4,10 +4,7 @@ import { LoadingManager } from 'three'
 import { LDrawLoader } from 'three/addons/loaders/LDrawLoader.js'
 import { LDrawConditionalLineMaterial } from 'three/addons/materials/LDrawConditionalLineMaterial.js'
 
-const modelPath = resolve(
-	import.meta.dirname,
-	'../../../packages/brickinetic/assets/prepared-model.mpd',
-)
+const modelPath = resolve(import.meta.dirname, '../../../packages/brickinetic/test/fixtures/car-self-contained.mpd')
 const source = await readFile(modelPath, 'utf8')
 const externalRequests = []
 const manager = new LoadingManager()
@@ -35,6 +32,4 @@ if (externalRequests.length > 0)
 	throw new Error(`Unexpected external requests: ${externalRequests.join(', ')}`)
 if (meshes === 0) throw new Error('The prepared MPD has no renderable mesh geometry')
 
-console.log(
-	`Loaded prepared MPD without external requests (${meshes} meshes, ${lineObjects} line objects).`,
-)
+console.log(`Loaded self-contained car fixture without external requests (${meshes} meshes, ${lineObjects} line objects).`)

@@ -1,132 +1,212 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { BrickModel } from 'brickinetic'
-import type { ErrorInfo, FormEvent, ReactNode } from 'react'
-import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { BrickModel, type MotionConfig } from 'brickinetic'
+import {
+	Component,
+	type ReactNode,
+	Suspense,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
+import { Box3, type Group, PerspectiveCamera, Sphere, Vector3 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import '@/styles/globals.css'
 
-const preparedModelUrl = '/models/prepared-model.mpd'
+const models = [
+	{
+		id: 'car',
+		label: 'Car',
+		complexity: 'Minimal',
+		set: '1477',
+		title: 'Red Devil Racer',
+	},
+	{
+		id: 'speedboat',
+		label: 'Speedboat',
+		complexity: 'Medium',
+		set: '31039',
+		title: 'Speedboat',
+	},
+	{
+		id: 'spaceship',
+		label: 'Spaceship',
+		complexity: 'Complex',
+		set: '70816',
+		title: 'Benny’s Spaceship',
+	},
+] as const
 
-type ModelErrorBoundaryProps = {
-	children: ReactNode
-	onRetry: () => void
-	onError: (error: Error) => void
-}
-
-type ModelErrorBoundaryState = { error: Error | null }
+type Axis = 'x' | 'y' | 'z'
+type Loop = 'always' | 'demand' | 'never'
 
 class ModelErrorBoundary extends Component<
-	ModelErrorBoundaryProps,
-	ModelErrorBoundaryState
+	{
+		children: ReactNode
+		retry: () => void
+		onError: (message: string) => void
+	},
+	{ error: Error | null }
 > {
-	state: ModelErrorBoundaryState = { error: null }
-
-	static getDerivedStateFromError(error: Error): ModelErrorBoundaryState {
+	state: { error: Error | null } = { error: null }
+	static getDerivedStateFromError(error: Error) {
 		return { error }
 	}
-
-	componentDidCatch(error: Error, _info: ErrorInfo) {
-		this.props.onError(error)
+	componentDidCatch(error: Error) {
+		this.props.onError(error.message)
 	}
-
 	render() {
 		if (this.state.error)
 			return (
-				<div className='absolute inset-0 z-10 flex items-center justify-center gap-5 bg-slate-100 p-8 [&_h2]:font-heading [&_h2]:text-3xl' role='alert'>
-					<div className='grid h-11 w-11 shrink-0 place-items-center border border-red-700 font-heading text-2xl text-red-700'>!</div>
-					<div>
-						<p className='mb-2 font-mono text-xs font-bold tracking-widest text-red-700'>LOAD INTERRUPTED</p>
-						<h2>Model unavailable</h2>
-						<p className='my-4 max-w-xl break-all font-mono text-xs leading-relaxed text-slate-600'>{this.state.error.message}</p>
-						<button
-							className='bg-slate-900 px-4 py-3 text-xs font-bold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700'
-							onClick={this.props.onRetry}
-							type='button'
-						>
-							Retry this source
-						</button>
-					</div>
+				<div className='load-error' role='alert'>
+					<span className='eyebrow'>LOAD INTERRUPTED</span>
+					<h2>Model unavailable</h2>
+					<p>{this.state.error.message}</p>
+					<button onClick={this.props.retry} type='button'>
+						Retry model
+					</button>
 				</div>
 			)
 		return this.props.children
 	}
 }
 
-function Controls() {
-	const { camera, gl } = useThree()
-	const controlsRef = useRef<OrbitControls | null>(null)
-	useFrame(() => controlsRef.current?.update())
-	useEffect(() => {
-		const controls = new OrbitControls(camera, gl.domElement)
-		controlsRef.current = controls
-		controls.enableDamping = true
-		controls.enablePan = false
-		controls.minDistance = 180
-		controls.maxDistance = 700
-		controls.target.set(0, 0, 0)
-		controls.update()
-		return () => {
-			controlsRef.current = null
-			controls.dispose()
-		}
-	}, [camera, gl])
+function Loading({ onPending }: { onPending: () => void }) {
+	useEffect(onPending, [onPending])
 	return null
-}
-
-function SuspenseStatus({ onPending }: { onPending: () => void }) {
-	useEffect(() => onPending(), [onPending])
-	return (
-		<mesh position={[0, 0, 0]}>
-			<icosahedronGeometry args={[12, 1]} />
-			<meshStandardMaterial color='#d34b35' wireframe />
-		</mesh>
-	)
 }
 
 function ModelScene({
 	src,
-	position,
-	rotation,
-	scale,
 	center,
 	edges,
-	showSecond,
+	second,
+	motion,
+	positionX,
+	rotationY,
+	scale,
 	onReady,
 }: {
 	src: string
-	position: [number, number, number]
-	rotation: [number, number, number]
-	scale: number
 	center: boolean
 	edges: boolean
-	showSecond: boolean
+	second: boolean
+	motion: MotionConfig
+	positionX: number
+	rotationY: number
+	scale: number
 	onReady: () => void
 }) {
-	useEffect(() => onReady(), [onReady, src])
+	const primary = useRef<Group>(null)
+	const secondary = useRef<Group>(null)
+	const { camera, gl, invalidate, frameloop, size } = useThree()
+	const controlsRef = useRef<OrbitControls | null>(null)
+	const [guideSize, setGuideSize] = useState(30)
+	useLayoutEffect(() => {
+		const controls = new OrbitControls(camera, gl.domElement)
+		controlsRef.current = controls
+		controls.enablePan = false
+		const change = () => invalidate()
+		controls.addEventListener('change', change)
+		return () => {
+			controls.removeEventListener('change', change)
+			controls.dispose()
+			controlsRef.current = null
+		}
+	}, [camera, gl, invalidate])
+	useEffect(() => {
+		if (controlsRef.current)
+			controlsRef.current.enableDamping = frameloop === 'always'
+	}, [frameloop])
+	useFrame(() => controlsRef.current?.update())
+	useLayoutEffect(() => {
+		const controls = controlsRef.current
+		if (!controls || !primary.current || !(camera instanceof PerspectiveCamera))
+			return
+		const bounds = new Box3().setFromObject(primary.current)
+		const first = bounds.getBoundingSphere(new Sphere())
+		if (secondary.current) {
+			secondary.current.position.set(0, 0, 0)
+			const other = new Box3()
+				.setFromObject(secondary.current)
+				.getBoundingSphere(new Sphere())
+			secondary.current.position.set(
+				first.center.x - other.center.x + (first.radius + other.radius) * 1.2,
+				first.center.y - other.center.y,
+				first.center.z - other.center.z,
+			)
+			bounds.union(new Box3().setFromObject(secondary.current))
+		}
+		const sphere = bounds.getBoundingSphere(new Sphere())
+		const radius = Math.max(sphere.radius, 1)
+		const vertical = (camera.fov * Math.PI) / 360
+		const horizontal = Math.atan(Math.tan(vertical) * camera.aspect)
+		const distance = (radius / Math.sin(Math.min(vertical, horizontal))) * 1.2
+		camera.position
+			.copy(sphere.center)
+			.add(new Vector3(1, 0.65, 1.3).normalize().multiplyScalar(distance))
+		camera.near = Math.max(radius / 1000, 0.01)
+		camera.far = distance + radius * 30
+		camera.updateProjectionMatrix()
+		controls.target.copy(sphere.center)
+		controls.minDistance = radius * 0.25
+		controls.maxDistance = distance * 5
+		controls.update()
+		setGuideSize((first.radius * 0.75) / scale)
+		invalidate()
+		onReady()
+		// Transform sliders intentionally do not reset a user's orbit on every edit.
+	}, [
+		src,
+		second,
+		center,
+		camera,
+		invalidate,
+		onReady,
+		size.width,
+		size.height,
+	])
+	const rotation: [number, number, number] = [0, (rotationY * Math.PI) / 180, 0]
+	const secondMotion: MotionConfig = {
+		...motion,
+		float: motion.float && { ...motion.float, speed: 0.45 },
+		spin: motion.spin && { ...motion.spin, speed: -0.12 },
+	}
 	return (
 		<>
-			<BrickModel
-				center={center}
-				edges={edges}
-				position={position}
-				rotation={rotation}
-				scale={scale}
-				src={src}
-			/>
-			{showSecond && (
+			<group ref={primary} name='inspection-primary'>
 				<BrickModel
-					center={center}
-					edges={false}
-					position={[140, 0, 0]}
-					scale={0.65}
 					src={src}
+					center={center}
+					edges={edges}
+					motion={motion}
+					position={[positionX, 0, 0]}
+					rotation={rotation}
+					scale={scale}
 				/>
+			</group>
+			{second && (
+				<group ref={secondary} name='inspection-secondary'>
+					<BrickModel
+						src={src}
+						center={center}
+						edges={false}
+						motion={secondMotion}
+						rotation={rotation}
+						scale={scale * 0.65}
+					/>
+				</group>
 			)}
+			<group position={[positionX, 0, 0]} rotation={rotation} scale={scale}>
+				<axesHelper args={[guideSize]} />
+			</group>
 		</>
 	)
 }
 
-function RangeControl({
+function Slider({
 	label,
 	value,
 	min,
@@ -144,314 +224,410 @@ function RangeControl({
 	onChange: (value: number) => void
 }) {
 	return (
-		<label className='mt-4 block'>
-			<span className='mb-2 flex justify-between font-mono text-xs [&_output]:font-bold [&_output]:text-red-700'>
-				<span>{label}</span>
+		<label className='slider'>
+			<span>
+				{label}
 				<output>
 					{value.toFixed(step < 1 ? 2 : 0)}
 					{unit}
 				</output>
 			</span>
 			<input
-				className='block w-full cursor-ew-resize accent-red-700'
-				max={max}
-				min={min}
-				onChange={(event) => onChange(Number(event.target.value))}
-				step={step}
+				aria-label={label}
 				type='range'
+				min={min}
+				max={max}
+				step={step}
 				value={value}
+				onChange={(e) => onChange(Number(e.target.value))}
 			/>
 		</label>
 	)
 }
 
+function Toggle({
+	label,
+	checked,
+	onChange,
+}: {
+	label: string
+	checked: boolean
+	onChange: (checked: boolean) => void
+}) {
+	return (
+		<label className='toggle'>
+			<span>{label}</span>
+			<input
+				type='checkbox'
+				checked={checked}
+				onChange={(e) => onChange(e.target.checked)}
+			/>
+		</label>
+	)
+}
+
+function AxisSelect({
+	label,
+	value,
+	onChange,
+}: {
+	label: string
+	value: Axis
+	onChange: (value: Axis) => void
+}) {
+	return (
+		<label className='select-row'>
+			<span>{label}</span>
+			<select
+				aria-label={label}
+				value={value}
+				onChange={(e) => onChange(e.target.value as Axis)}
+			>
+				{(['x', 'y', 'z'] as const).map((axis) => (
+					<option key={axis} value={axis}>
+						{axis.toUpperCase()}
+					</option>
+				))}
+			</select>
+		</label>
+	)
+}
+
 export default function App() {
-	const [src, setSrc] = useState(preparedModelUrl)
-	const [srcInput, setSrcInput] = useState(preparedModelUrl)
-	const [boundaryKey, setBoundaryKey] = useState(0)
-	const [status, setStatus] = useState('Waiting for model')
+	const [modelId, setModelId] = useState<string>('car')
+	const model = models.find((item) => item.id === modelId) ?? models[0]
+	const src = `/models/${model.id}.mpd`
+	const [attempt, setAttempt] = useState(0)
+	const [status, setStatus] = useState('Loading model and parts')
 	const [center, setCenter] = useState(true)
 	const [edges, setEdges] = useState(true)
-	const [showSecond, setShowSecond] = useState(false)
+	const [second, setSecond] = useState(false)
+	const [floatEnabled, setFloatEnabled] = useState(true)
+	const [spinEnabled, setSpinEnabled] = useState(true)
+	const [floatAxis, setFloatAxis] = useState<Axis>('y')
+	const [spinAxis, setSpinAxis] = useState<Axis>('y')
+	const [amplitude, setAmplitude] = useState(5)
+	const [floatSpeed, setFloatSpeed] = useState(0.8)
+	const [spinSpeed, setSpinSpeed] = useState(0.2)
+	const [reducedMotion, setReducedMotion] = useState<'system' | 'never'>(
+		'system',
+	)
+	const [frameloop, setFrameloop] = useState<Loop>('always')
 	const [positionX, setPositionX] = useState(0)
 	const [rotationY, setRotationY] = useState(0)
 	const [scale, setScale] = useState(1)
-	const [errorMessage, setErrorMessage] = useState('')
-
-	const onPending = useCallback(() => setStatus('Loading prepared MPD'), [])
-
-	const onReady = useCallback(() => {
-		setErrorMessage('')
+	const step = useRef<(() => void) | null>(null)
+	const motion = useMemo<MotionConfig>(
+		() => ({
+			float: {
+				enabled: floatEnabled,
+				axis: floatAxis,
+				amplitude,
+				speed: floatSpeed,
+			},
+			spin: { enabled: spinEnabled, axis: spinAxis, speed: spinSpeed },
+			reducedMotion,
+		}),
+		[
+			floatEnabled,
+			floatAxis,
+			amplitude,
+			floatSpeed,
+			spinEnabled,
+			spinAxis,
+			spinSpeed,
+			reducedMotion,
+		],
+	)
+	const pending = useCallback(() => {
+		setStatus('Loading model and parts')
+	}, [])
+	const ready = useCallback(() => {
 		setStatus('Model ready')
 	}, [])
-
-	const onError = useCallback((error: Error) => {
-		setErrorMessage(error.message)
+	const failed = useCallback(() => {
 		setStatus('Load failed')
 	}, [])
-
-	const retry = useCallback(() => {
-		setStatus('Retrying model')
-		setBoundaryKey((key) => key + 1)
-	}, [])
-
-	const submitSource = (event: FormEvent<HTMLFormElement>) => {
-		event.preventDefault()
-		const nextSource = srcInput.trim()
-		if (!nextSource) return
-		setStatus('Loading model source')
-		setErrorMessage('')
-		setSrc(nextSource)
-		setBoundaryKey((key) => key + 1)
+	const retry = () => {
+		pending()
+		setAttempt((value) => value + 1)
 	}
 
 	return (
-		<main className='min-h-dvh bg-slate-200 px-5 pb-6 font-body text-slate-900 sm:px-10 lg:px-16'>
-			<header className='mx-auto flex min-h-18 max-w-screen-2xl items-center justify-between border-b border-slate-900/20 font-mono text-xs font-bold tracking-widest'>
-				<a className='inline-flex items-center gap-3 no-underline focus-visible:outline-2 focus-visible:outline-red-700' href='/' aria-label='Brickinetic home'>
-					<span className='grid h-8 w-8 place-items-center bg-red-700 text-base font-black tracking-normal text-white' aria-hidden='true'>
-						B
-					</span>
-					<span>BRICKINETIC</span>
+		<main>
+			<header className='site-header'>
+				<a href='/' aria-label='Brickinetic home'>
+					<b className='brand-mark'>B</b> BRICKINETIC
 				</a>
-				<p className='hidden text-slate-500 sm:block [&_span]:text-red-700'>
-					RENDERING FOUNDATION <span>·</span> MILESTONE 01
-				</p>
+				<span>LDRAW / REACT THREE FIBER</span>
 			</header>
-
-			<section className='mx-auto flex max-w-screen-2xl flex-col gap-4 pt-10 pb-7 md:flex-row md:items-end md:justify-between md:pt-16 [&_h1]:font-heading [&_h1]:text-5xl [&_h1]:leading-none [&_h1]:tracking-tight md:[&_h1]:text-7xl [&_em]:text-red-700'>
+			<section className='intro'>
 				<div>
-					<p className='mb-2 font-mono text-xs font-bold tracking-widest text-red-700'>A SMALL COMPONENT. A WHOLE MODEL.</p>
+					<p className='eyebrow'>REAL BRICKS. A FEW PROPS.</p>
 					<h1>
 						Model <em>in</em> motion.
 					</h1>
 				</div>
-				<p className='max-w-sm text-sm leading-relaxed text-slate-600'>
-					A consumer-owned Canvas, an embedded MPD, and a few props. Orbit the
-					model; change one value at a time.
+				<p>
+					Pick a model. Give it a little motion.
+					<br />
+					Explore the details from every angle.
 				</p>
 			</section>
-
-			<div className='mx-auto grid max-w-screen-2xl border border-slate-400 bg-slate-100 shadow-xl shadow-slate-900/10 md:grid-cols-[minmax(0,1fr)_300px]'>
-				<section className='min-w-0 p-4' aria-label='Live model viewport'>
-					<div className='flex justify-between gap-4 pb-3 font-mono text-xs font-semibold tracking-wide text-slate-500 [&_b]:text-red-700 [&_i]:text-red-700'>
+			<div className='workspace'>
+				<section className='viewer' aria-label='Live model viewport'>
+					<div className='viewer-heading'>
 						<span>
 							<b>01</b> / LIVE VIEWPORT
 						</span>
-						<span>
-							DRAG TO ORBIT <i>·</i> SCROLL TO ZOOM
-						</span>
+						<span>DRAG TO ORBIT · SCROLL TO ZOOM</span>
 					</div>
-					<div className='relative h-[min(112vw,530px)] min-h-85 overflow-hidden border border-slate-300 bg-slate-200 md:h-125 lg:h-150'>
-						<div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-mono text-slate-400' aria-hidden='true'>
-							+
-						</div>
+					<div className='canvas-shell'>
 						<ModelErrorBoundary
-							key={boundaryKey}
-							onError={onError}
-							onRetry={retry}
+							key={`${model.id}-${attempt}`}
+							retry={retry}
+							onError={failed}
 						>
 							<Canvas
-								camera={{
-									fov: 38,
-									far: 2000,
-									near: 1,
-									position: [250, 175, 310],
+								frameloop={frameloop}
+								camera={{ fov: 38, position: [250, 175, 310] }}
+								onCreated={(state) => {
+									step.current = () =>
+										state.advance(state.clock.elapsedTime + 1 / 60, true)
 								}}
 							>
 								<color attach='background' args={['#e2e8f0']} />
 								<ambientLight intensity={1.6} />
 								<directionalLight intensity={2.3} position={[120, 230, 160]} />
-								<Controls />
-								<Suspense fallback={<SuspenseStatus onPending={onPending} />}>
+								<Suspense fallback={<Loading onPending={pending} />}>
 									<ModelScene
+										src={src}
 										center={center}
 										edges={edges}
-										onReady={onReady}
-										position={[positionX, 0, 0]}
-										rotation={[0, (rotationY * Math.PI) / 180, 0]}
+										second={second}
+										motion={motion}
+										positionX={positionX}
+										rotationY={rotationY}
 										scale={scale}
-										showSecond={showSecond}
-										src={src}
+										onReady={ready}
 									/>
 								</Suspense>
 							</Canvas>
 						</ModelErrorBoundary>
 						<div
-							className='absolute bottom-4 left-4 z-10 inline-flex items-center gap-2 border border-slate-900/20 bg-slate-100/95 px-3 py-2 font-mono text-xs font-semibold'
+							className='model-status'
+							role='status'
 							data-testid='model-status'
-							data-status={status.toLowerCase().replaceAll(' ', '-')}
+							data-status={status === 'Model ready' ? 'ready' : 'pending'}
 						>
-							<span
-								className={
-									status === 'Model ready'
-										? 'h-2 w-2 rounded-full bg-emerald-600'
-										: 'h-2 w-2 rounded-full bg-amber-500'
-								}
-							/>
+							<i />
 							{status}
 						</div>
+						<figure
+							className='axis-key'
+							aria-label='Base-local coordinate axes'
+						>
+							<span className='axis-x'>X</span>
+							<span className='axis-y'>Y</span>
+							<span className='axis-z'>Z</span> BASE-LOCAL
+						</figure>
 					</div>
-					<div className='flex flex-wrap justify-between gap-2 pt-3 font-mono text-xs text-slate-500 [&_b]:text-slate-900 [&_i]:text-red-700'>
+					<div className='specimen'>
 						<span>
-							SPECIMEN <b>1477 / RED DEVIL RACER</b>
+							{model.set} / <b>{model.title}</b>
 						</span>
-						<span>
-							LDRAW MPD <i>·</i> SELF-CONTAINED
-						</span>
+						<a
+							href='https://library.ldraw.org/omr/sets'
+							target='_blank'
+							rel='noreferrer'
+						>
+							LDRAW OMR ↗
+						</a>
 					</div>
 				</section>
-
-				<aside className='flex min-w-0 flex-col border-t border-slate-300 px-5 pt-5 md:border-t-0 md:border-l' aria-label='Model controls'>
-					<div className='flex justify-between border-b border-slate-300 pb-4 [&_h2]:font-heading [&_h2]:text-2xl'>
-						<div>
-							<p className='mb-2 font-mono text-xs font-bold tracking-widest text-red-700'>CONSUMER INPUT</p>
-							<h2>Model setup</h2>
-						</div>
-						<span className='font-mono text-xs text-slate-400'>01—04</span>
+				<aside className='controls' aria-label='Model controls'>
+					<div className='controls-heading'>
+						<p className='eyebrow'>CONSUMER INPUT</p>
+						<h2>Model setup</h2>
 					</div>
-
-					<form className='border-b border-slate-300 py-4 [&>label]:mb-2 [&>label]:block [&>label]:font-mono [&>label]:text-xs [&>label]:font-bold [&>p]:mt-2 [&>p]:text-xs [&>p]:text-slate-500 [&_input]:min-w-0 [&_input]:w-full [&_input]:bg-transparent [&_input]:p-2 [&_input]:font-mono [&_input]:text-xs [&_input]:outline-none' onSubmit={submitSource}>
-						<label htmlFor='model-source'>Source URL</label>
-						<div className='flex border border-slate-400 bg-slate-50 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-red-700'>
-							<input
-								id='model-source'
-								data-testid='model-source'
-								onChange={(event) => setSrcInput(event.target.value)}
-								value={srcInput}
-							/>
-							<button
-								className='w-10 shrink-0 cursor-pointer bg-slate-900 text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700'
-								type='submit'
-								aria-label='Load source'
+					<section className='control-section'>
+						<label className='model-picker' htmlFor='model-select'>
+							Model
+							<select
+								aria-label='Model'
+								id='model-select'
+								value={model.id}
+								onChange={(e) => {
+									pending()
+									setModelId(e.target.value)
+								}}
 							>
-								↗
-							</button>
-						</div>
-						<p>Use an MPD with all geometry embedded.</p>
-					</form>
-
-					<div className='border-b border-slate-300 py-4'>
-						<div className='flex items-baseline gap-2 font-mono text-xs font-bold [&_span]:text-red-700'>
-							<span>02</span>
-							<h3>Transform</h3>
-						</div>
-						<RangeControl
+								{models.map((item) => (
+									<option key={item.id} value={item.id}>
+										{item.label} · {item.complexity}
+									</option>
+								))}
+							</select>
+						</label>
+						<p className='hint'>
+							Parts resolve automatically from the LDraw library.
+						</p>
+					</section>
+					<fieldset className='control-section'>
+						<legend>Motion</legend>
+						<Toggle
+							label='Float'
+							checked={floatEnabled}
+							onChange={setFloatEnabled}
+						/>
+						<AxisSelect
+							label='Float axis'
+							value={floatAxis}
+							onChange={setFloatAxis}
+						/>
+						<Slider
+							label='Float amplitude'
+							min={0}
+							max={30}
+							step={0.5}
+							value={amplitude}
+							onChange={setAmplitude}
+							unit=' LU'
+						/>
+						<Slider
+							label='Float speed'
+							min={-2}
+							max={2}
+							step={0.1}
+							value={floatSpeed}
+							onChange={setFloatSpeed}
+							unit=' rad/s'
+						/>
+						<Toggle
+							label='Spin'
+							checked={spinEnabled}
+							onChange={setSpinEnabled}
+						/>
+						<AxisSelect
+							label='Spin axis'
+							value={spinAxis}
+							onChange={setSpinAxis}
+						/>
+						<Slider
+							label='Spin speed'
+							min={-1}
+							max={1}
+							step={0.05}
+							value={spinSpeed}
+							onChange={setSpinSpeed}
+							unit=' rad/s'
+						/>
+						<p className='hint'>
+							Axes follow the base transform. Changing an axis restarts that
+							preset.
+						</p>
+					</fieldset>
+					<fieldset className='control-section'>
+						<legend>Transform</legend>
+						<Slider
 							label='Position X'
 							min={-80}
 							max={80}
-							onChange={setPositionX}
 							value={positionX}
+							onChange={setPositionX}
 							unit=' LU'
 						/>
-						<RangeControl
+						<Slider
 							label='Rotation Y'
 							min={-180}
 							max={180}
-							onChange={setRotationY}
 							value={rotationY}
+							onChange={setRotationY}
 							unit='°'
 						/>
-						<RangeControl
+						<Slider
 							label='Uniform scale'
 							min={0.5}
 							max={2}
-							onChange={setScale}
 							step={0.05}
 							value={scale}
+							onChange={setScale}
 							unit='×'
 						/>
-					</div>
-
-					<div className='border-b border-slate-300 py-4'>
-						<div className='flex items-baseline gap-2 font-mono text-xs font-bold [&_span]:text-red-700'>
-							<span>03</span>
-							<h3>Display</h3>
-						</div>
-						<label className='flex min-h-11 cursor-pointer items-center justify-between gap-3 py-1 [&_span]:grid [&_b]:font-mono [&_b]:text-xs [&_small]:text-xs [&_small]:text-slate-500 [&_input]:h-4 [&_input]:w-4 [&_input]:accent-red-700 [&_i]:hidden'>
-							<span>
-								<b>Center bounds</b>
-								<small>Oriented model center → origin</small>
-							</span>
-							<input
-								checked={center}
-								onChange={(event) => setCenter(event.target.checked)}
-								type='checkbox'
-							/>
-							<i />
-						</label>
-						<label className='flex min-h-11 cursor-pointer items-center justify-between gap-3 py-1 [&_span]:grid [&_b]:font-mono [&_b]:text-xs [&_small]:text-xs [&_small]:text-slate-500 [&_input]:h-4 [&_input]:w-4 [&_input]:accent-red-700 [&_i]:hidden'>
-							<span>
-								<b>Edge lines</b>
-								<small>Ordinary + conditional edges</small>
-							</span>
-							<input
-								checked={edges}
-								onChange={(event) => setEdges(event.target.checked)}
-								type='checkbox'
-							/>
-							<i />
-						</label>
-						<label className='flex min-h-11 cursor-pointer items-center justify-between gap-3 py-1 [&_span]:grid [&_b]:font-mono [&_b]:text-xs [&_small]:text-xs [&_small]:text-slate-500 [&_input]:h-4 [&_input]:w-4 [&_input]:accent-red-700 [&_i]:hidden'>
-							<span>
-								<b>Second instance</b>
-								<small>Independent · edges off</small>
-							</span>
-							<input
-								checked={showSecond}
-								onChange={(event) => setShowSecond(event.target.checked)}
-								type='checkbox'
-							/>
-							<i />
-						</label>
-					</div>
-
-					<div className='mt-auto flex items-center gap-3 py-4 text-xs leading-relaxed text-slate-500'>
-						<div className='grid h-9 w-11 place-items-center bg-slate-200 font-mono text-xs [&_b]:text-slate-900'>
-							R3F <b>9</b>
-						</div>
-						<p>
-							Canvas and recovery stay
-							<br />
-							in the consumer's hands.
+					</fieldset>
+					<fieldset className='control-section'>
+						<legend>Display & playback</legend>
+						<Toggle
+							label='Center bounds'
+							checked={center}
+							onChange={setCenter}
+						/>
+						<Toggle label='Edge lines' checked={edges} onChange={setEdges} />
+						<Toggle
+							label='Second instance'
+							checked={second}
+							onChange={setSecond}
+						/>
+						<p className='hint'>
+							Second instance follows the selected axes with its own speeds;
+							edges off.
 						</p>
-					</div>
+						<label className='select-row'>
+							Reduced motion
+							<select
+								aria-label='Reduced motion'
+								value={reducedMotion}
+								onChange={(e) =>
+									setReducedMotion(e.target.value as typeof reducedMotion)
+								}
+							>
+								<option value='system'>Follow system</option>
+								<option value='never'>Allow motion</option>
+							</select>
+						</label>
+						<label className='select-row'>
+							Render loop
+							<select
+								aria-label='Render loop'
+								value={frameloop}
+								onChange={(e) => setFrameloop(e.target.value as Loop)}
+							>
+								<option value='always'>Continuous</option>
+								<option value='demand'>Demand</option>
+								<option value='never'>Manual</option>
+							</select>
+						</label>
+						{frameloop === 'never' && (
+							<>
+								<button
+									className='manual-button'
+									type='button'
+									onClick={() => step.current?.()}
+								>
+									Advance 1/60 second
+								</button>
+								<p className='hint'>
+									Each click renders one frame. Motion follows the system
+									preference.
+								</p>
+							</>
+						)}
+					</fieldset>
 				</aside>
 			</div>
-
-			<section className='mx-auto mt-4 grid max-w-screen-2xl gap-4 border border-slate-700 bg-slate-900 p-5 text-slate-100 md:grid-cols-[130px_minmax(0,1fr)_minmax(150px,0.6fr)] md:items-center [&_pre]:overflow-x-auto [&_pre]:font-mono [&_pre]:text-xs [&_pre]:leading-relaxed [&>p]:text-sm [&>p]:leading-relaxed [&>p]:text-slate-400' aria-label='Consumer code example'>
-				<div className='grid gap-1 font-mono text-xs tracking-widest text-slate-400'>
-					<span className='mb-2 font-mono text-xs font-bold tracking-widest text-red-700'>04 / PUBLIC API</span>
-					<span>OWN YOUR SCENE</span>
-				</div>
+			<section className='api-example' aria-label='Consumer code example'>
+				<p className='eyebrow'>02 / PUBLIC API</p>
 				<pre>
-					<code>
-						<span className='text-red-300'>&lt;Canvas&gt;</span>
-						{'\n  '}
-						<span className='text-red-300'>
-							&lt;Suspense fallback=&#123;null&#125;&gt;
-						</span>
-						{'\n    '}
-						<span className='text-red-300'>&lt;BrickModel</span>
-						{' src="/models/ship.mpd" center edges '}
-						<span className='text-red-300'>/&gt;</span>
-						{'\n  '}
-						<span className='text-red-300'>&lt;/Suspense&gt;</span>
-						{'\n'}
-						<span className='text-red-300'>&lt;/Canvas&gt;</span>
-					</code>
+					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} } }} />`}</code>
 				</pre>
 				<p>
-					Loading suspends. Failures reach the nearest error boundary with the
-					source URL.
+					Use inside your Canvas and Suspense boundary. Missing parts reach your
+					error boundary.
 				</p>
 			</section>
-
-			<footer className='mx-auto flex max-w-screen-2xl flex-wrap justify-between gap-4 pt-5 font-mono text-xs tracking-widest text-slate-500 [&_b]:text-red-700'>
-				<span>
-					BRICKINETIC <b>·</b> M1
-				</span>
-				<span data-testid='error-message'>{errorMessage}</span>
+			<footer>
+				<span>BRICKINETIC · MODEL EXPLORER</span>
+				<a href='/models/README.md'>Model provenance & licenses ↗</a>
 			</footer>
 		</main>
 	)

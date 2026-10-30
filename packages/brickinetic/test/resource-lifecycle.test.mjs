@@ -10,7 +10,7 @@ import {
 } from '../dist/model-resource.js'
 import { setEdgeVisibility } from '../dist/model-view.js'
 
-const fixture = await readFile(new URL('../assets/prepared-model.mpd', import.meta.url), 'utf8')
+const fixture = await readFile(new URL('./fixtures/car-self-contained.mpd', import.meta.url), 'utf8')
 const colors = await readFile(new URL('../assets/LDConfig.ldr', import.meta.url), 'utf8')
 
 if (!globalThis.ProgressEvent) {

@@ -36,7 +36,97 @@ type RenderLease = {
 
 const resources = new Map<string, ResourceEntry>()
 const colorConfigUrl = new URL('./assets/LDConfig.ldr', import.meta.url).href
+export const DEFAULT_PARTS_LIBRARY_PATH =
+	'https://raw.githubusercontent.com/kulits/ldraw-parts/f3d0c2256398c28fbb682f4bb08c59eed81fd4f1/ldraw/'
 export const RESOURCE_EVICTION_DELAY_MS = 1000
+
+export function normalizePartsLibraryPath(
+	path = DEFAULT_PARTS_LIBRARY_PATH,
+	src?: string,
+): string {
+	const base = typeof location === 'undefined' ? src : location.href
+	if (path.startsWith('/') && !base)
+		throw new Error(
+			'An origin-relative partsLibraryPath requires a browser origin',
+		)
+	let url: URL
+	try {
+		url = new URL(path, base)
+	} catch {
+		throw new Error(
+			'partsLibraryPath must be an absolute URL or origin-relative path',
+		)
+	}
+	if (
+		!/^https?:$/.test(url.protocol) ||
+		url.search ||
+		url.hash ||
+		(!path.startsWith('/') && !/^https?:\/\//i.test(path))
+	)
+		throw new Error(
+			'partsLibraryPath must be an HTTP(S) URL or origin-relative path without query or fragment',
+		)
+	url.pathname = `${url.pathname.replace(/\/+$/, '')}/`
+	return url.href
+}
+
+function resourceKey(src: string, path?: string) {
+	return JSON.stringify([src, normalizePartsLibraryPath(path, src)])
+}
+
+// Three r186 catches some nested geometry errors and returns partial models.
+// Observe its existing resolver, without duplicating its parser or lookup rules.
+function observeDependencies(loader: LDrawLoader) {
+	const cache = (
+		loader as unknown as {
+			partsCache: {
+				parseCache: {
+					setData: (name: string, text: string) => void
+					fetchData: (name: string) => Promise<string>
+					ensureDataLoaded: (name: string) => Promise<void>
+				}
+			}
+		}
+	).partsCache?.parseCache
+	if (!cache?.fetchData || !cache.ensureDataLoaded || !cache.setData)
+		throw new Error(
+			'Unsupported Three.js LDraw dependency cache; expected r186',
+		)
+	const failures = new Map<string, Error>()
+	// r186 normalizes references, but not embedded FILE names. Register aliases
+	// through its parser so OMR Windows paths and standardized subfolders match.
+	const setData = cache.setData.bind(cache)
+	cache.setData = (name, text) => {
+		setData(name, text)
+		const normalized = name.trim().replace(/\\/g, '/')
+		if (normalized !== name) setData(normalized, text)
+		const alias = normalized.startsWith('s/')
+			? `parts/${normalized}`
+			: normalized.startsWith('48/')
+				? `p/${normalized}`
+				: normalized
+		if (alias !== normalized) setData(alias, text)
+	}
+	const fetchData = cache.fetchData.bind(cache)
+	cache.fetchData = async (name) => {
+		const text = await fetchData(name)
+		if (!text.trim() || /^\s*(?:<!doctype\s+html|<html\b)/i.test(text))
+			throw new Error(
+				`Invalid LDraw response for part "${name}": empty document or HTML`,
+			)
+		return text
+	}
+	const ensure = cache.ensureDataLoaded.bind(cache)
+	cache.ensureDataLoaded = async (name) => {
+		try {
+			await ensure(name)
+		} catch (error) {
+			failures.set(name, asError(error))
+			throw error
+		}
+	}
+	return failures
+}
 
 function asError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error))
@@ -121,7 +211,10 @@ function disposeModel(model: Group) {
 	for (const texture of textures) texture.dispose()
 }
 
-async function loadModel(src: string): Promise<Group> {
+async function loadModel(
+	src: string,
+	partsLibraryPath: string,
+): Promise<Group> {
 	let response: Response
 	try {
 		response = await fetch(src)
@@ -157,14 +250,9 @@ async function loadModel(src: string): Promise<Group> {
 		throw new Error(`Cannot load LDraw model "${src}": the MPD is empty`)
 
 	const manager = new LoadingManager()
-	manager.setURLModifier((url) => {
-		if (url === colorConfigUrl) return url
-		throw new Error(
-			`LDraw model "${src}" is not self-contained; unresolved geometry reference "${url}". Embed every referenced file in the MPD.`,
-		)
-	})
-
 	const loader = new LDrawLoader(manager)
+	loader.setPartsLibraryPath(partsLibraryPath)
+	const dependencyFailures = observeDependencies(loader)
 	loader.setConditionalLineMaterial(LDrawConditionalLineMaterial)
 	loader.addDefaultMaterials()
 	try {
@@ -187,9 +275,18 @@ async function loadModel(src: string): Promise<Group> {
 		)
 		if (missingReference)
 			throw new Error(
-				`LDraw model "${src}" is not self-contained; unresolved geometry reference "${missingReference[1]}". Embed every referenced file in the MPD.`,
+				`Cannot load LDraw model "${src}": unresolved part "${missingReference[1]}" in "${partsLibraryPath}". Embed the part or configure a library containing it.`,
 			)
 		throw new Error(`Cannot parse LDraw model "${src}": ${message}`)
+	}
+
+	const failure = dependencyFailures.entries().next().value
+	if (failure) {
+		disposeModel(model)
+		const [name, error] = failure
+		throw new Error(
+			`Cannot load LDraw model "${src}": unresolved part "${name}" in "${partsLibraryPath}": ${error.message}`,
+		)
 	}
 
 	let renderableGeometry = false
@@ -204,12 +301,13 @@ async function loadModel(src: string): Promise<Group> {
 	return model
 }
 
-function getResource(src: string): ResourceEntry {
-	const cached = resources.get(src)
+function getResource(src: string, path?: string): ResourceEntry {
+	const key = resourceKey(src, path)
+	const cached = resources.get(key)
 	if (cached) return cached
 
 	const entry: PendingEntry = { status: 'pending', promise: Promise.resolve() }
-	entry.promise = loadModel(src).then(
+	entry.promise = loadModel(src, normalizePartsLibraryPath(path, src)).then(
 		(model) => {
 			const ready: ReadyEntry = {
 				status: 'ready',
@@ -218,11 +316,11 @@ function getResource(src: string): ResourceEntry {
 				renderLeases: [],
 				evictionTimer: undefined,
 			}
-			resources.set(src, ready)
-			scheduleEviction(src, ready)
+			resources.set(key, ready)
+			scheduleEviction(key, ready)
 		},
 		(error: unknown) => {
-			resources.set(src, {
+			resources.set(key, {
 				status: 'failed',
 				error: new Error(
 					`Failed to load LDraw model "${src}": ${asError(error).message}`,
@@ -231,32 +329,37 @@ function getResource(src: string): ResourceEntry {
 			})
 		},
 	)
-	resources.set(src, entry)
+	resources.set(key, entry)
 	return entry
 }
 
-export function readModel(src: string): Group {
-	const entry = getResource(src)
+export function readModel(src: string, partsLibraryPath?: string): Group {
+	const key = resourceKey(src, partsLibraryPath)
+	const entry = getResource(src, partsLibraryPath)
 	if (entry.status === 'pending') throw entry.promise
 	if (entry.status === 'failed') {
 		if (entry.evictionTimer === undefined) {
 			entry.evictionTimer = setTimeout(() => {
-				if (resources.get(src) === entry) resources.delete(src)
+				if (resources.get(key) === entry) resources.delete(key)
 			}, 0)
 		}
 		throw entry.error
 	}
-	addRenderLease(src, entry)
+	addRenderLease(key, entry)
 	return entry.model
 }
 
-export function cloneModel(src: string): Group {
-	return readModel(src).clone(true) as Group
+export function cloneModel(src: string, partsLibraryPath?: string): Group {
+	return readModel(src, partsLibraryPath).clone(true) as Group
 }
 
-export function retainModel(src: string): () => void {
-	const entry = resources.get(src)
-	if (!entry || entry.status !== 'ready')
+export function retainModel(
+	src: string,
+	partsLibraryPath?: string,
+): () => void {
+	const key = resourceKey(src, partsLibraryPath)
+	const entry = resources.get(key)
+	if (entry?.status !== 'ready')
 		throw new Error(`Cannot retain LDraw model "${src}" before it has loaded`)
 
 	clearEviction(entry)
@@ -269,6 +372,6 @@ export function retainModel(src: string): () => void {
 		if (!active) return
 		active = false
 		entry.consumers--
-		scheduleEviction(src, entry)
+		scheduleEviction(key, entry)
 	}
 }

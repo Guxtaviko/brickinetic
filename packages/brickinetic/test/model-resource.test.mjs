@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { readModel } from '../dist/model-resource.js'
 
-const fixture = await readFile(new URL('../assets/prepared-model.mpd', import.meta.url), 'utf8')
+const fixture = await readFile(new URL('./fixtures/car-self-contained.mpd', import.meta.url), 'utf8')
 const colors = await readFile(new URL('../assets/LDConfig.ldr', import.meta.url), 'utf8')
 
 if (!globalThis.ProgressEvent) {
@@ -72,6 +72,7 @@ test('rejects network, HTTP, HTML, empty, and unresolved-reference failures with
 		if (url.endsWith('/empty.mpd')) return new Response('  \n')
 		if (url.endsWith('/no-geometry.mpd'))
 			return new Response('0 FILE empty.ldr\n0 Empty model\n')
+		if (!url.endsWith('.mpd')) return new Response('missing', { status: 404 })
 		return new Response(
 			'0 FILE root.ldr\n0 Root\n1 16 0 0 0 1 0 0 0 1 0 0 0 1 missing-part.dat\n',
 		)
@@ -82,7 +83,7 @@ test('rejects network, HTTP, HTML, empty, and unresolved-reference failures with
 			['html.mpd', /response is HTML/],
 			['empty.mpd', /MPD is empty/],
 			['no-geometry.mpd', /no renderable geometry/],
-			['reference.mpd', /not self-contained.*missing-part\.dat/i],
+			['reference.mpd', /unresolved part.*missing-part\.dat/i],
 		]
 
 		for (const [path, message] of failures) {
