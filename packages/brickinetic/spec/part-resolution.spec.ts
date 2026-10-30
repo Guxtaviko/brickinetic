@@ -1,33 +1,45 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
 import { readFile } from 'node:fs/promises'
-import {
+import test from 'node:test'
+
+const {
 	readModel,
 	retainModel,
 	normalizePartsLibraryPath,
 	DEFAULT_PARTS_LIBRARY_PATH,
-} from '../dist/model-resource.js'
+} = (await import(
+	new URL('../../dist/model-resource.js', import.meta.url).href
+)) as typeof import('../dist/model-resource.js')
 
 const colors = await readFile(
-	new URL('../assets/LDConfig.ldr', import.meta.url),
+	new URL('../../assets/LDConfig.ldr', import.meta.url),
 	'utf8',
 )
 const triangle = '0 Triangle\n0 !LDRAW_ORG Part\n3 16 0 0 0 10 0 0 0 10 0\n'
-const reference = (name) => `1 16 0 0 0 1 0 0 0 1 0 0 0 1 ${name}\n`
-const root = (name) => '0 FILE root.ldr\n0 Root\n' + reference(name)
+const reference = (name: string) => `1 16 0 0 0 1 0 0 0 1 0 0 0 1 ${name}\n`
+const root = (name: string) => `0 FILE root.ldr\n0 Root\n${reference(name)}`
 if (!globalThis.ProgressEvent)
 	globalThis.ProgressEvent = class extends Event {
-		constructor(type, init = {}) {
+		readonly lengthComputable: boolean
+		readonly loaded: number
+		readonly total: number
+		constructor(type: string, init: ProgressEventInit = {}) {
 			super(type)
+			this.lengthComputable = init.lengthComputable ?? false
+			this.loaded = init.loaded ?? 0
+			this.total = init.total ?? 0
 			Object.assign(this, init)
 		}
 	}
 
-async function withFetch(handler, run) {
+async function withFetch(
+	handler: (url: string, init?: RequestInit) => Response | Promise<Response>,
+	run: (requests: string[]) => Promise<void>,
+) {
 	const previous = globalThis.fetch
-	const requests = []
+	const requests: string[] = []
 	globalThis.fetch = async (input) => {
-		const url = input?.url ?? String(input)
+		const url = input instanceof Request ? input.url : String(input)
 		requests.push(url)
 		return url.endsWith('/LDConfig.ldr') ? new Response(colors) : handler(url)
 	}
@@ -37,7 +49,7 @@ async function withFetch(handler, run) {
 		globalThis.fetch = previous
 	}
 }
-async function load(src, path) {
+async function load(src: string, path?: string) {
 	try {
 		return readModel(src, path)
 	} catch (value) {
@@ -79,11 +91,11 @@ test('recursively resolves parts and primitives, deduplicates repeated reference
 						'0 FILE embedded.dat\n' +
 						triangle,
 				)
-			if (url === path + 'parts/brick.dat')
+			if (url === `${path}parts/brick.dat`)
 				return new Response(
-					'0 Brick\n0 !LDRAW_ORG Part\n' + reference('primitive.dat'),
+					`0 Brick\n0 !LDRAW_ORG Part\n${reference('primitive.dat')}`,
 				)
-			if (url === path + 'p/primitive.dat')
+			if (url === `${path}p/primitive.dat`)
 				return new Response(
 					triangle.replace('!LDRAW_ORG Part', '!LDRAW_ORG Primitive'),
 				)
@@ -93,10 +105,10 @@ test('recursively resolves parts and primitives, deduplicates repeated reference
 			const model = await load(src, path)
 			assert.ok(model.isGroup)
 			assert.equal(
-				requests.filter((url) => url === path + 'parts/brick.dat').length,
+				requests.filter((url) => url === `${path}parts/brick.dat`).length,
 				1,
 			)
-			assert.ok(requests.includes(path + 'p/primitive.dat'))
+			assert.ok(requests.includes(`${path}p/primitive.dat`))
 			assert.equal(requests.filter((url) => url.includes(embedded)).length, 0)
 		},
 	)
@@ -136,7 +148,7 @@ test('rejects nested failures that upstream would otherwise log and omit, then p
 			if (url === src) return new Response(root('parent.dat'))
 			if (url.endsWith('/parts/parent.dat'))
 				return new Response(
-					'0 Parent\n0 !LDRAW_ORG Part\n' + reference('missing-child.dat'),
+					`0 Parent\n0 !LDRAW_ORG Part\n${reference('missing-child.dat')}`,
 				)
 			return repaired
 				? new Response(triangle)
@@ -144,6 +156,7 @@ test('rejects nested failures that upstream would otherwise log and omit, then p
 		},
 		async () => {
 			await assert.rejects(load(src, 'https://nested.test/'), (error) => {
+				assert.ok(error instanceof Error)
 				assert.match(error.message, /nested-retry.mpd/)
 				assert.match(error.message, /missing-child.dat/)
 				return true
@@ -168,6 +181,7 @@ test('rejects HTML, empty, and offline part responses with dependency and model 
 			},
 			async () => {
 				await assert.rejects(load(src, 'https://invalid.test/'), (error) => {
+					assert.ok(error instanceof Error)
 					assert.match(error.message, /bad-part-/)
 					assert.match(error.message, /bad.dat/)
 					return true
@@ -184,7 +198,7 @@ test('uses the hosted default when no override is supplied', async () => {
 		async (requests) => {
 			await load(src)
 			assert.ok(
-				requests.includes(DEFAULT_PARTS_LIBRARY_PATH + 'parts/brick.dat'),
+				requests.includes(`${DEFAULT_PARTS_LIBRARY_PATH}parts/brick.dat`),
 			)
 		},
 	)
@@ -196,9 +210,7 @@ test('resolves embedded OMR backslash subparts before attempting the library', a
 	await withFetch(
 		(url) => {
 			if (url === src)
-				return new Response(
-					root(embedded) + '0 FILE ' + embedded + '\n' + triangle,
-				)
+				return new Response(`${root(embedded)}0 FILE ${embedded}\n${triangle}`)
 			throw new Error('embedded subpart must not require external geometry')
 		},
 		async (requests) => {

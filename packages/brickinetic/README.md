@@ -74,7 +74,7 @@ Embedded definitions take precedence. External parts and their nested dependenci
 The default is `https://raw.githubusercontent.com/kulits/ldraw-parts/f3d0c2256398c28fbb682f4bb08c59eed81fd4f1/ldraw/`, a pinned third-party GitHub raw mirror of The LDraw Parts Library. Pinning stabilizes content, not host availability. The official library endpoint was tested but does not allow the cross-origin browser requests needed by this component. jsDelivr was also tested but still returns HTTP 403 for required Spaceship parts, so it is not a complete source for the supplied models.
 
 ```tsx
-<BrickModel src='/models/ship.mpd' partsLibraryPath='/ldraw/' center />
+;<BrickModel src='/models/ship.mpd' partsLibraryPath='/ldraw/' center />
 ```
 
 Host a LDraw library with its `parts/`, `parts/s/`, `p/` (including resolution subfolders), and any required `models/` directories beneath that root. An absolute URL is also accepted; origin-relative paths resolve against the browser origin. Preserve filenames and directory layout. The root must allow cross-origin GETs if hosted on another origin. A model URL on another host likewise requires CORS. No proxy, unofficial-parts service, or complete library is bundled.

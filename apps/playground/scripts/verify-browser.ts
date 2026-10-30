@@ -1,12 +1,12 @@
-// Run against the Vite playground with: playwright-cli run-code --filename=apps/playground/scripts/verify-browser.js
+// Run against the Vite playground with: playwright-cli run-code --filename=apps/playground/.compiled/scripts/verify-browser.js
 // Uses a deterministic embedded MPD for behavioral tests; real OMR loading is checked separately.
-async (page) => {
-	const checks = []
-	const check = (value, message) => {
+;async (page: import('playwright').Page) => {
+	const checks: string[] = []
+	const check = (value: unknown, message: string) => {
 		if (!value) throw new Error(message)
 		checks.push(message)
 	}
-	const near = (a, b) => Math.abs(a - b) < 1e-6
+	const near = (a: number, b: number) => Math.abs(a - b) < 1e-6
 	const base = new URL(page.url()).origin
 	const fixture =
 		'0 FILE test.ldr\n0 Test\n4 4 10 20 30 20 20 30 20 30 30 10 30 30\n'
@@ -21,7 +21,7 @@ async (page) => {
 		window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
 			supportsFiber: true,
 			renderers: new Map(),
-			inject: (renderer) => {
+			inject: (renderer: unknown) => {
 				const id = ++rendererId
 				window.__REACT_DEVTOOLS_GLOBAL_HOOK__.renderers.set(id, renderer)
 				return id
@@ -37,14 +37,22 @@ async (page) => {
 			if (name !== '(prefers-reduced-motion: reduce)') return query
 			const add = query.addEventListener.bind(query)
 			const remove = query.removeEventListener.bind(query)
-			query.addEventListener = (type, listener, ...args) => {
+			query.addEventListener = (
+				type: string,
+				listener: EventListenerOrEventListenerObject,
+				...args: [options?: boolean | AddEventListenerOptions]
+			) => {
 				if (type === 'change') {
 					window.__media.adds++
 					window.__media.active++
 				}
 				return add(type, listener, ...args)
 			}
-			query.removeEventListener = (type, listener, ...args) => {
+			query.removeEventListener = (
+				type: string,
+				listener: EventListenerOrEventListenerObject,
+				...args: [options?: boolean | AddEventListenerOptions]
+			) => {
 				if (type === 'change') {
 					window.__media.removes++
 					window.__media.active--
@@ -67,36 +75,41 @@ async (page) => {
 			.getEntriesByType('resource')
 			.map((entry) => entry.name)
 			.find((url) => url.includes('/@react-three_fiber.js?v='))
-		const fiber = await import(url)
-		window.__getState = () =>
-			fiber._roots.get(document.querySelector('canvas')).store.getState()
-		window.__unmount = () =>
-			fiber.unmountComponentAtNode(document.querySelector('canvas'))
+		if (!url) throw new Error('R3F resource URL missing')
+		const fiber = (await import(url)) as typeof import('@react-three/fiber')
+		const canvas = document.querySelector('canvas')
+		if (!canvas) throw new Error('Playground canvas missing')
+		const root = fiber._roots.get(canvas)
+		if (!root) throw new Error('R3F root missing')
+		window.__getState = () => root.store.getState()
+		window.__unmount = () => fiber.unmountComponentAtNode(canvas)
 	})
 	const pose = (name = 'inspection-primary') =>
 		page.evaluate((name) => {
 			const state = window.__getState()
 			const instance = state.scene.getObjectByName(name)
+			if (!instance) throw new Error(`Model instance missing: ${name}`)
 			const base = instance.children[0]
 			const float = base.getObjectByName('brickinetic-float')
 			const spin = base.getObjectByName('brickinetic-spin')
+			if (!float || !spin) throw new Error('Motion groups missing')
 			return {
 				position: float.position.toArray(),
-				rotation: spin.rotation.toArray().slice(0, 3),
+				rotation: [spin.rotation.x, spin.rotation.y, spin.rotation.z],
 				basePosition: base.position.toArray(),
-				baseRotation: base.rotation.toArray().slice(0, 3),
+				baseRotation: [base.rotation.x, base.rotation.y, base.rotation.z],
 				scale: base.scale.toArray(),
 				centerOffset: spin.children[0].position.toArray(),
 				subscribers: state.internal.subscribers.length,
 				media: window.__media.active,
 			}
 		}, name)
-	const advance = (delta) =>
+	const advance = (delta: number) =>
 		page.evaluate((delta) => {
 			const state = window.__getState()
 			state.advance(state.clock.elapsedTime + delta, true)
 		}, delta)
-	const slider = async (label, value) => {
+	const slider = async (label: string, value: number) => {
 		const input = page.getByRole('slider', { name: label, exact: true })
 		await input.fill(String(value))
 	}
@@ -301,7 +314,11 @@ async (page) => {
 		'root unmount cleans all preference listeners',
 	)
 	await page.addInitScript(() => {
-		window.matchMedia = undefined
+		Object.defineProperty(window, 'matchMedia', {
+			value: undefined,
+			configurable: true,
+			writable: true,
+		})
 	})
 	await page.goto(base)
 	await ready()
@@ -311,11 +328,15 @@ async (page) => {
 			.getEntriesByType('resource')
 			.map((entry) => entry.name)
 			.find((url) => url.includes('/@react-three_fiber.js?v='))
-		const fiber = await import(url)
-		const state = fiber._roots
-			.get(document.querySelector('canvas'))
-			.store.getState()
-		return state.scene.getObjectByName('brickinetic-spin').rotation.y
+		if (!url) throw new Error('R3F resource URL missing')
+		const fiber = (await import(url)) as typeof import('@react-three/fiber')
+		const canvas = document.querySelector('canvas')
+		if (!canvas) throw new Error('Playground canvas missing')
+		const root = fiber._roots.get(canvas)
+		if (!root) throw new Error('R3F root missing')
+		const spin = root.store.getState().scene.getObjectByName('brickinetic-spin')
+		if (!spin) throw new Error('Spin group missing')
+		return spin.rotation.y
 	})
 	check(missingApi > 0, 'missing matchMedia allows motion')
 	let repaired = false
@@ -338,7 +359,7 @@ async (page) => {
 	await page.getByLabel('Model', { exact: true }).selectOption('car')
 	await page.getByRole('alert').waitFor()
 	check(
-		(await page.getByRole('alert').innerText()).includes(
+		(await page.getByRole('alert').textContent())?.includes(
 			'deliberately-missing.dat',
 		),
 		'unavailable part produces an identifiable viewport error',

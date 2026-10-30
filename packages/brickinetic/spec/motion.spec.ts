@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-	advanceMotion,
-	initialMotionState,
-	motionPose,
-	validateMotion,
-} from '../dist/motion.js'
+import type { MotionConfig } from '../dist/index.js'
+
+const { advanceMotion, initialMotionState, motionPose, validateMotion } =
+	(await import(
+		new URL('../../dist/motion.js', import.meta.url).href
+	)) as typeof import('../dist/motion.js')
 
 test('validates motion numbers with field-specific errors', () => {
 	validateMotion({
@@ -17,7 +17,7 @@ test('validates motion numbers with field-specific errors', () => {
 		[{ float: { amplitude: Infinity } }, 'motion.float.amplitude'],
 		[{ float: { speed: NaN } }, 'motion.float.speed'],
 		[{ spin: { speed: Infinity } }, 'motion.spin.speed'],
-	])
+	] as [MotionConfig, string][])
 		assert.throws(
 			() => validateMotion(config),
 			new RegExp(field.replaceAll('.', '\\.')),
@@ -25,8 +25,8 @@ test('validates motion numbers with field-specific errors', () => {
 })
 
 test('evaluates defaults, axes, composition and elapsed time independently of frame rate', () => {
-	for (const axis of ['x', 'y', 'z']) {
-		const config = { float: {}, spin: { axis } }
+	for (const axis of ['x', 'y', 'z'] as const) {
+		const config: MotionConfig = { float: {}, spin: { axis } }
 		const poses = [30, 60, 144].map((rate) => {
 			let state = initialMotionState()
 			for (let i = 0; i < rate; i++)
@@ -36,7 +36,9 @@ test('evaluates defaults, axes, composition and elapsed time independently of fr
 		for (const pose of poses) {
 			assert.ok(Math.abs(pose.position[1] - 0.15 * Math.sin(0.8)) < 1e-6)
 			assert.ok(
-				Math.abs(pose.rotation[['x', 'y', 'z'].indexOf(axis)] - 0.2) < 1e-6,
+				Math.abs(
+					pose.rotation[(['x', 'y', 'z'] as const).indexOf(axis)] - 0.2,
+				) < 1e-6,
 			)
 		}
 	}
@@ -66,16 +68,16 @@ test('retains, resets and reverses phases on updates', () => {
 })
 
 test('float follows each selected local axis and axis changes reset only its phase', () => {
-	for (const [index, axis] of ['x', 'y', 'z'].entries()) {
-		const config = {
+	for (const [index, axis] of (['x', 'y', 'z'] as const).entries()) {
+		const config: MotionConfig = {
 			float: { axis, amplitude: 4, speed: 2 },
 			spin: { axis: 'z', speed: 0.5 },
 		}
 		const state = advanceMotion(initialMotionState(), config, 0.25)
 		const pose = motionPose(state, config)
-		pose.position.forEach((value, i) =>
-			assert.equal(value, i === index ? 4 * Math.sin(0.5) : 0),
-		)
+		pose.position.forEach((value, i) => {
+			assert.equal(value, i === index ? 4 * Math.sin(0.5) : 0)
+		})
 		assert.equal(pose.rotation[2], 0.125)
 		const nextAxis = axis === 'x' ? 'y' : 'x'
 		const next = advanceMotion(
@@ -90,7 +92,7 @@ test('float follows each selected local axis and axis changes reset only its pha
 })
 
 test('independent phases, zero speeds, enable transitions and preference gates restore identity', () => {
-	const config = {
+	const config: MotionConfig = {
 		float: { axis: 'z', speed: -1 },
 		spin: { axis: 'x', speed: -2 },
 	}

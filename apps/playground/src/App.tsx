@@ -148,15 +148,7 @@ function ModelScene({
 		invalidate()
 		onReady()
 		// Transform sliders intentionally do not reset a user's orbit on every edit.
-	}, [
-		src,
-		center,
-		camera,
-		invalidate,
-		onReady,
-		size.width,
-		size.height,
-	])
+	}, [src, center, camera, invalidate, onReady, size.width, size.height])
 	const rotation: [number, number, number] = [0, (rotationY * Math.PI) / 180, 0]
 	return (
 		<>

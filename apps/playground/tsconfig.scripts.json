@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"rootDir": ".",
+		"outDir": ".compiled",
+		"strict": true,
+		"skipLibCheck": true,
+		"noEmitOnError": true,
+		"types": ["node"]
+	},
+	"include": ["scripts/**/*.ts"],
+	"exclude": [
+		"scripts/verify-browser.ts",
+		"scripts/verify-model-loading.ts",
+		"scripts/browser-globals.d.ts"
+	]
+}

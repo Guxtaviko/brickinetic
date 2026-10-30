@@ -14,10 +14,11 @@
 		}
 	},
 	"scripts": {
-		"typecheck": "tsc -p tsconfig.type-tests.json",
-		"build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
-		"test": "node --test --test-concurrency=1",
-		"smoke:node": "node scripts/smoke-node-import.mjs"
+		"typecheck": "tsc -p tsconfig.json",
+		"build": "tsc -p tsconfig.build.json && pnpm build:scripts && node .compiled/scripts/copy-assets.js",
+		"test": "node --test --test-concurrency=1 .compiled/spec/*.spec.js",
+		"smoke:node": "node .compiled/scripts/smoke-node-import.js",
+		"build:scripts": "tsc -p tsconfig.scripts.json"
 	},
 	"peerDependencies": {
 		"@react-three/fiber": ">=9 <10",
@@ -27,6 +28,7 @@
 	},
 	"devDependencies": {
 		"@react-three/fiber": "catalog:",
+		"@types/node": "^22.20.5",
 		"@types/react": "catalog:",
 		"@types/three": "catalog:",
 		"react": "catalog:",

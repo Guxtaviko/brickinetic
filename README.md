@@ -4,8 +4,12 @@ A TypeScript React Three Fiber component for loading LDraw MPD models with autom
 
 ## Workspace
 
+Use Node.js 22.12 or later. The library initializes the Three.js module before R3F to preserve Node 22.12 import compatibility. Scripts and behavioral specs are checked with strict TypeScript and compiled to ignored `.compiled/` directories before execution.
+
 - `pnpm install` installs workspace dependencies.
 - `pnpm dev` starts the playground.
+- `pnpm format` formats maintained files with the shared Biome configuration.
+- `pnpm check` verifies formatting, import organization, and lint rules; `pnpm lint` runs lint rules alone.
 - `pnpm build`, `pnpm typecheck`, and `pnpm test` run workspace tasks through Turborepo.
 
 See [packages/brickinetic/README.md](packages/brickinetic/README.md) for the component API.

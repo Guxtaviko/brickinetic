@@ -1,3 +1,5 @@
+// Evaluate Three.js before R3F's CommonJS entry to avoid a require(ESM) cycle on Node 22.12.
+import 'three'
 import { type ThreeElements, useFrame, useThree } from '@react-three/fiber'
 import {
 	type RefObject,

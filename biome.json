@@ -1,13 +1,34 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
-	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-	"linter": { "enabled": true },
-	"css": { "parser": { "tailwindDirectives": true } },
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"linter": {
+		"enabled": true
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "single",
 			"jsxQuoteStyle": "single",
 			"semicolons": "asNeeded"
 		}
+	},
+	"files": {
+		"includes": [
+			"**",
+			"!**/.compiled",
+			"!**/dist",
+			"!**/dist-ssr",
+			"!**/node_modules",
+			"!**/spec/fixtures",
+			"!apps/playground/public/models"
+		]
 	}
 }

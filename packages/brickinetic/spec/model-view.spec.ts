@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { Box3, Group, Mesh, MeshBasicMaterial, Vector3, BoxGeometry } from 'three'
-import { getCenterOffset, LDrawOrientation, setEdgeVisibility } from '../dist/model-view.js'
+import {
+	Box3,
+	BoxGeometry,
+	Group,
+	Mesh,
+	MeshBasicMaterial,
+	Vector3,
+} from 'three'
+
+const { getCenterOffset, LDrawOrientation, setEdgeVisibility } = (await import(
+	new URL('../../dist/model-view.js', import.meta.url).href
+)) as typeof import('../dist/model-view.js')
 
 test('uses identity center offset by default and centers the oriented bounds when requested', () => {
 	const model = new Group()
@@ -26,9 +36,9 @@ test('rotates the LDraw vertical axis into Three.js positive Y', () => {
 test('toggles ordinary and conditional edge visibility on the supplied instance tree', () => {
 	const model = new Group()
 	const ordinary = new Group()
-	ordinary.isLineSegments = true
+	Object.assign(ordinary, { isLineSegments: true })
 	const conditional = new Group()
-	conditional.isConditionalLine = true
+	Object.assign(conditional, { isConditionalLine: true })
 	model.add(ordinary, conditional)
 
 	setEdgeVisibility(model, false)

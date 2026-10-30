@@ -7,9 +7,16 @@
 		"build": "turbo run build",
 		"typecheck": "turbo run typecheck",
 		"test": "turbo run test",
-		"smoke:node": "turbo run smoke:node"
+		"smoke:node": "turbo run smoke:node",
+		"format": "biome format --write .",
+		"lint": "biome lint . --error-on-warnings",
+		"check": "biome check . --error-on-warnings"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "2.6.4",
 		"turbo": "^2.8.17"
+	},
+	"engines": {
+		"node": ">=22.12.0"
 	}
 }
