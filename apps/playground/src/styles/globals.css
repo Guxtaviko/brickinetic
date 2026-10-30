@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme {
+	--font-heading: Georgia, Cambria, "Times New Roman", serif;
+	--font-body: "Trebuchet MS", Verdana, sans-serif;
+}
