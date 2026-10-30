@@ -10,9 +10,11 @@ async (page) => {
 	const base = new URL(page.url()).origin
 	const fixture =
 		'0 FILE test.ldr\n0 Test\n4 4 10 20 30 20 20 30 20 30 30 10 30 30\n'
-	await page.route('**/models/*.mpd', (route) =>
-		route.fulfill({ contentType: 'text/plain', body: fixture }),
-	)
+	let modelRequests = 0
+	await page.route('**/models/*.mpd', (route) => {
+		modelRequests++
+		return route.fulfill({ contentType: 'text/plain', body: fixture })
+	})
 	await page.addInitScript(() => {
 		window.__commits = 0
 		let rendererId = 0
@@ -191,12 +193,43 @@ async (page) => {
 		(await pose()).rotation[2] > 0 && (await pose()).media === 0,
 		'explicit override animates and removes system listeners',
 	)
-	await page.getByLabel('Reduced motion', { exact: true }).selectOption('system')
+	await page
+		.getByLabel('Reduced motion', { exact: true })
+		.selectOption('system')
 	await page.waitForTimeout(100)
-	check((await pose()).rotation.every((value) => value === 0), 'returning to system rechecks an active reduced-motion request')
+	check(
+		(await pose()).rotation.every((value) => value === 0),
+		'returning to system rechecks an active reduced-motion request',
+	)
 	await page.emulateMedia({ reducedMotion: 'no-preference' })
 	await page.waitForTimeout(100)
-	check((await pose()).media === 2, 'returning to system policy restores exactly two listeners')
+	check(
+		(await pose()).media === 2,
+		'returning to system policy restores exactly two listeners',
+	)
+	await page
+		.getByLabel('Reduced motion', { exact: true })
+		.selectOption('always')
+	await page.waitForTimeout(100)
+	state = await pose()
+	const reducedSecond = await pose('inspection-secondary')
+	check(
+		state.position.every((value) => value === 0) &&
+			state.rotation.every((value) => value === 0) &&
+			reducedSecond.position.every((value) => value === 0) &&
+			reducedSecond.rotation.every((value) => value === 0) &&
+			state.media === 0 &&
+			reducedSecond.media === 0,
+		'always reduced motion restores both instances without preference listeners',
+	)
+	await page
+		.getByLabel('Reduced motion', { exact: true })
+		.selectOption('system')
+	await page.waitForTimeout(100)
+	check(
+		(await pose()).media === 2,
+		'leaving always reduced motion resumes system listeners',
+	)
 	await page.getByLabel('Second instance', { exact: true }).uncheck()
 	await page.waitForTimeout(100)
 	check(
@@ -237,7 +270,8 @@ async (page) => {
 	const angle = (await pose()).rotation[2]
 	await page.waitForTimeout(350)
 	check(
-		commits > 0 && (await page.evaluate(() => window.__commits)) === commits &&
+		commits > 0 &&
+			(await page.evaluate(() => window.__commits)) === commits &&
 			(await pose()).rotation[2] !== angle,
 		'animation changes transforms without React commits',
 	)
@@ -285,17 +319,59 @@ async (page) => {
 	})
 	check(missingApi > 0, 'missing matchMedia allows motion')
 	let repaired = false
-	await page.route('**/models/car.mpd', (route) => route.fulfill({ contentType: 'text/plain', body: '0 FILE missing.ldr\n1 16 0 0 0 1 0 0 0 1 0 0 0 1 deliberately-missing.dat\n' }))
-	await page.route('**/deliberately-missing.dat', (route) => route.fulfill({ status: repaired ? 200 : 404, contentType: 'text/plain', body: repaired ? fixture : 'missing' }))
+	await page.route('**/models/car.mpd', (route) =>
+		route.fulfill({
+			contentType: 'text/plain',
+			body: '0 FILE missing.ldr\n1 16 0 0 0 1 0 0 0 1 0 0 0 1 deliberately-missing.dat\n',
+		}),
+	)
+	await page.route('**/deliberately-missing.dat', (route) =>
+		route.fulfill({
+			status: repaired ? 200 : 404,
+			contentType: 'text/plain',
+			body: repaired ? fixture : 'missing',
+		}),
+	)
 	await page.getByLabel('Model', { exact: true }).selectOption('speedboat')
 	await ready()
 	await page.waitForTimeout(1200)
 	await page.getByLabel('Model', { exact: true }).selectOption('car')
 	await page.getByRole('alert').waitFor()
-	check((await page.getByRole('alert').innerText()).includes('deliberately-missing.dat'), 'unavailable part produces an identifiable viewport error')
+	check(
+		(await page.getByRole('alert').innerText()).includes(
+			'deliberately-missing.dat',
+		),
+		'unavailable part produces an identifiable viewport error',
+	)
 	repaired = true
 	await page.getByRole('button', { name: 'Retry model' }).click()
 	await ready()
-	check((await page.getByRole('alert').count()) === 0, 'repair and retry recover the failed model')
+	check(
+		(await page.getByRole('alert').count()) === 0,
+		'repair and retry recover the failed model',
+	)
+	const requestsBeforeSimulation = modelRequests
+	await page.getByLabel('Simulate loading failure', { exact: true }).check()
+	await page.getByRole('alert').waitFor()
+	check(
+		modelRequests === requestsBeforeSimulation,
+		'simulated failure exercises the boundary without model network requests',
+	)
+	await page.getByLabel('Simulate loading failure', { exact: true }).uncheck()
+	await ready()
+	check(
+		(await page.getByRole('alert').count()) === 0,
+		'turning simulation off reloads the selected model',
+	)
+	await page.getByLabel('Simulate loading failure', { exact: true }).check()
+	await page.getByRole('alert').waitFor()
+	await page.getByRole('button', { name: 'Retry model' }).click()
+	await ready()
+	check(
+		(await page
+			.getByLabel('Simulate loading failure', { exact: true })
+			.isChecked()) === false,
+		'retry clears the failure simulation and recovers',
+	)
 	return { passed: checks.length, checks }
 }

@@ -78,6 +78,12 @@ function Loading({ onPending }: { onPending: () => void }) {
 	return null
 }
 
+function SimulatedLoadingFailure(): never {
+	throw new Error(
+		'Simulated loading failure. Turn off the test to load this model.',
+	)
+}
+
 function ModelScene({
 	src,
 	center,
@@ -309,13 +315,13 @@ export default function App() {
 	const [amplitude, setAmplitude] = useState(5)
 	const [floatSpeed, setFloatSpeed] = useState(0.8)
 	const [spinSpeed, setSpinSpeed] = useState(0.2)
-	const [reducedMotion, setReducedMotion] = useState<'system' | 'never'>(
-		'system',
-	)
+	const [reducedMotion, setReducedMotion] =
+		useState<MotionConfig['reducedMotion']>('system')
 	const [frameloop, setFrameloop] = useState<Loop>('always')
 	const [positionX, setPositionX] = useState(0)
 	const [rotationY, setRotationY] = useState(0)
 	const [scale, setScale] = useState(1)
+	const [simulateFailure, setSimulateFailure] = useState(false)
 	const step = useRef<(() => void) | null>(null)
 	const motion = useMemo<MotionConfig>(
 		() => ({
@@ -350,6 +356,7 @@ export default function App() {
 	}, [])
 	const retry = () => {
 		pending()
+		setSimulateFailure(false)
 		setAttempt((value) => value + 1)
 	}
 
@@ -368,11 +375,7 @@ export default function App() {
 						Model <em>in</em> motion.
 					</h1>
 				</div>
-				<p>
-					Pick a model. Give it a little motion.
-					<br />
-					Explore the details from every angle.
-				</p>
+				<p>Pick a model. Give it a little motion.</p>
 			</section>
 			<div className='workspace'>
 				<section className='viewer' aria-label='Live model viewport'>
@@ -384,7 +387,7 @@ export default function App() {
 					</div>
 					<div className='canvas-shell'>
 						<ModelErrorBoundary
-							key={`${model.id}-${attempt}`}
+							key={`${model.id}-${attempt}-${simulateFailure}`}
 							retry={retry}
 							onError={failed}
 						>
@@ -400,17 +403,21 @@ export default function App() {
 								<ambientLight intensity={1.6} />
 								<directionalLight intensity={2.3} position={[120, 230, 160]} />
 								<Suspense fallback={<Loading onPending={pending} />}>
-									<ModelScene
-										src={src}
-										center={center}
-										edges={edges}
-										second={second}
-										motion={motion}
-										positionX={positionX}
-										rotationY={rotationY}
-										scale={scale}
-										onReady={ready}
-									/>
+									{simulateFailure ? (
+										<SimulatedLoadingFailure />
+									) : (
+										<ModelScene
+											src={src}
+											center={center}
+											edges={edges}
+											second={second}
+											motion={motion}
+											positionX={positionX}
+											rotationY={rotationY}
+											scale={scale}
+											onReady={ready}
+										/>
+									)}
 								</Suspense>
 							</Canvas>
 						</ModelErrorBoundary>
@@ -423,13 +430,10 @@ export default function App() {
 							<i />
 							{status}
 						</div>
-						<figure
-							className='axis-key'
-							aria-label='Base-local coordinate axes'
-						>
+						<figure className='axis-key' aria-label='coordinate axes'>
 							<span className='axis-x'>X</span>
 							<span className='axis-y'>Y</span>
-							<span className='axis-z'>Z</span> BASE-LOCAL
+							<span className='axis-z'>Z</span>
 						</figure>
 					</div>
 					<div className='specimen'>
@@ -470,7 +474,20 @@ export default function App() {
 							</select>
 						</label>
 						<p className='hint'>
-							Parts resolve automatically from the LDraw library.
+							Parts resolve from the LDraw library. A missing part fails the
+							draw; fix its availability and retry.
+						</p>
+						<Toggle
+							label='Simulate loading failure'
+							checked={simulateFailure}
+							onChange={(checked) => {
+								pending()
+								setSimulateFailure(checked)
+							}}
+						/>
+						<p className='hint'>
+							Tests the loading-error UI without changing your connection or
+							cached files.
 						</p>
 					</section>
 					<fieldset className='control-section'>
@@ -582,6 +599,7 @@ export default function App() {
 								}
 							>
 								<option value='system'>Follow system</option>
+								<option value='always'>Always reduce</option>
 								<option value='never'>Allow motion</option>
 							</select>
 						</label>
@@ -597,6 +615,11 @@ export default function App() {
 								<option value='never'>Manual</option>
 							</select>
 						</label>
+						<p className='hint'>
+							Continuous renders every frame, even when static. Demand renders
+							when requested and keeps rendering during motion. Manual renders
+							only when you advance it.
+						</p>
 						{frameloop === 'never' && (
 							<>
 								<button
@@ -607,8 +630,8 @@ export default function App() {
 									Advance 1/60 second
 								</button>
 								<p className='hint'>
-									Each click renders one frame. Motion follows the system
-									preference.
+									Each click advances time by 1/60 second. Always reduce
+									disables motion under any render-loop mode.
 								</p>
 							</>
 						)}
@@ -618,7 +641,7 @@ export default function App() {
 			<section className='api-example' aria-label='Consumer code example'>
 				<p className='eyebrow'>02 / PUBLIC API</p>
 				<pre>
-					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} } }} />`}</code>
+					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} },\n    reducedMotion: '${reducedMotion}' }} />`}</code>
 				</pre>
 				<p>
 					Use inside your Canvas and Suspense boundary. Missing parts reach your

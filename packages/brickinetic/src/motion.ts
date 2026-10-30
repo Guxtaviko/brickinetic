@@ -14,7 +14,7 @@ export interface SpinMotion {
 export interface MotionConfig {
 	float?: false | FloatMotion
 	spin?: false | SpinMotion
-	reducedMotion?: 'system' | 'never'
+	reducedMotion?: 'system' | 'always' | 'never'
 }
 
 export function validateMotion(motion: MotionConfig | undefined): void {

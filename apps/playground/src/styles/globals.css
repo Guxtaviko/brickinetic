@@ -1,411 +1,315 @@
 @import "tailwindcss";
+
 @theme {
 	--font-heading: Georgia, Cambria, "Times New Roman", serif;
 	--font-body: "Trebuchet MS", Verdana, sans-serif;
 }
+
 :root {
-	font-family: var(--font-body);
-	color: #172033;
-	@apply bg-slate-200;
+	@apply bg-slate-200 font-body text-slate-900;
 	font-synthesis: none;
 }
+
 * {
-	box-sizing: border-box;
+	@apply box-border;
 }
+
 body {
 	@apply m-0;
 }
+
 button,
 input,
 select {
-	font: inherit;
+	@apply font-[inherit];
 }
+
 button,
 select,
 input[type="checkbox"] {
 	@apply cursor-pointer;
 }
+
 button {
-	@apply border-0;
-	background: #172033;
-	@apply text-white;
-	padding: 0.7rem 1rem;
+	@apply border-0 bg-slate-900 px-4 py-3 text-white;
 }
+
 button:hover {
 	@apply bg-red-700;
 }
+
 :focus-visible {
-	outline: 2px solid #b91c1c;
-	outline-offset: 3px;
+	@apply outline-2 outline-offset-2 outline-red-700;
 }
+
 main {
-	max-width: 1600px;
-	padding: 0 clamp(1rem, 4vw, 4rem) 1.5rem;
-	margin: auto;
+	@apply mx-auto max-w-7xl px-4 pb-6;
 }
+
+@media (min-width: 40rem) {
+	main {
+		@apply px-8;
+	}
+}
+
+@media (min-width: 64rem) {
+	main {
+		@apply px-16;
+	}
+
+	h1 {
+		@apply text-7xl;
+	}
+}
+
 a {
-	color: inherit;
+	@apply text-inherit;
 }
+
 .site-header {
-	min-height: 70px;
-	@apply flex;
-	@apply justify-between;
-	@apply items-center;
-	border-bottom: 1px solid #17203330;
-	font:
-		bold 11px ui-monospace,
-		monospace;
-	letter-spacing: 0.12em;
+	@apply flex min-h-16 items-center justify-between border-b border-slate-900/20 font-mono text-xs font-bold tracking-wider;
 }
+
 .site-header a {
-	@apply flex;
-	@apply items-center;
-	gap: 12px;
-	@apply no-underline;
+	@apply flex items-center gap-3 no-underline;
 }
+
 .site-header > span {
 	@apply text-slate-500;
 }
+
 .brand-mark {
-	@apply grid;
-	@apply place-items-center;
-	@apply w-8;
-	@apply h-8;
-	@apply bg-red-700;
-	@apply text-white;
-	font-size: 18px;
+	@apply grid size-8 place-items-center bg-red-700 text-lg text-white;
 }
+
 .intro {
-	@apply flex;
-	@apply items-end;
-	@apply justify-between;
-	@apply gap-8;
-	padding: 2rem 0 1.5rem;
+	@apply flex items-end justify-between gap-8 py-8 pb-6;
 }
+
 .eyebrow {
-	margin: 0 0 0.5rem;
-	@apply text-red-700;
-	font:
-		bold 10px ui-monospace,
-		monospace;
-	letter-spacing: 0.13em;
+	@apply mb-2 text-xs font-mono font-bold tracking-wider text-red-700;
 }
+
 h1 {
-	font: normal clamp(2.7rem, 5.5vw, 5rem) / 1 var(--font-heading);
-	letter-spacing: -0.045em;
-	@apply m-0;
+	@apply m-0 font-heading text-5xl leading-none font-normal tracking-tight;
 }
+
 h1 em {
 	@apply text-red-700;
 }
+
 .intro > p {
-	font-size: 13px;
-	line-height: 1.7;
-	@apply text-slate-500;
-	@apply m-0;
+	@apply m-0 text-sm leading-7 text-slate-500;
 }
+
 .workspace {
-	@apply grid;
-	grid-template-columns: minmax(0, 1fr) 310px;
-	height: clamp(440px, 68dvh, 800px);
-	border: 1px solid #94a3b8;
-	@apply bg-slate-100;
-	box-shadow: 0 12px 32px #1720330b;
+	@apply grid h-[clamp(440px,68dvh,800px)] grid-cols-[minmax(0,1fr)_310px] border border-slate-400 bg-slate-100 shadow-lg;
 }
+
 .viewer {
-	@apply min-w-0;
-	@apply min-h-0;
-	@apply flex;
-	@apply flex-col;
-	padding: 14px;
+	@apply flex min-h-0 min-w-0 flex-col p-3.5;
 }
+
 .viewer-heading,
 .specimen {
-	@apply shrink-0;
-	@apply flex;
-	@apply justify-between;
-	@apply gap-4;
-	font:
-		10px ui-monospace,
-		monospace;
-	@apply text-slate-500;
+	@apply flex shrink-0 justify-between gap-4 font-mono text-xs text-slate-500;
 }
+
 .viewer-heading {
-	padding-bottom: 12px;
+	@apply pb-3;
 }
+
 .viewer-heading b {
 	@apply text-red-700;
 }
+
 .canvas-shell {
-	@apply flex-1;
-	@apply min-h-0;
-	@apply relative;
-	@apply overflow-hidden;
-	@apply bg-slate-200;
-	border: 1px solid #cbd5e1;
+	@apply relative min-h-0 flex-1 overflow-hidden border border-slate-300 bg-slate-200;
 }
+
 .specimen {
-	padding-top: 12px;
+	@apply pt-3;
 }
+
 .specimen b {
-	color: #172033;
+	@apply text-slate-900;
 }
+
 .specimen a {
 	@apply no-underline;
 }
+
 .model-status {
-	@apply absolute;
-	left: 12px;
-	bottom: 12px;
-	max-width: calc(100% - 24px);
-	background: #f8fafcf0;
-	border: 1px solid #cbd5e1;
-	@apply flex;
-	@apply items-center;
-	gap: 7px;
-	padding: 8px 10px;
-	font:
-		10px ui-monospace,
-		monospace;
-	@apply pointer-events-none;
+	@apply pointer-events-none absolute bottom-3 left-3 flex max-w-full items-center gap-2 border border-slate-300 bg-slate-50/95 px-2.5 py-2 font-mono text-xs;
 }
+
 .model-status i {
-	width: 7px;
-	height: 7px;
-	background: #d97706;
-	@apply rounded-full;
+	@apply size-2 rounded-full bg-amber-600;
 }
+
 .model-status[data-status="ready"] i {
-	background: #059669;
+	@apply bg-emerald-600;
 }
+
 .axis-key {
-	@apply m-0;
-	@apply absolute;
-	right: 12px;
-	top: 12px;
-	font:
-		9px ui-monospace,
-		monospace;
-	letter-spacing: 0.04em;
-	@apply text-slate-500;
-	@apply pointer-events-none;
+	@apply pointer-events-none absolute top-3 right-3 m-0 font-mono text-xs tracking-wide text-slate-500;
 }
+
 .axis-key span {
-	margin-right: 7px;
-	@apply font-bold;
+	@apply mr-2 font-bold;
 }
+
 .axis-x {
 	@apply text-red-700;
 }
+
 .axis-y {
-	color: #15803d;
+	@apply text-green-700;
 }
+
 .axis-z {
-	color: #1d4ed8;
+	@apply text-blue-700;
 }
+
 .controls {
-	@apply min-h-0;
-	@apply overflow-y-auto;
+	@apply min-h-0 overflow-y-auto border-l border-slate-300 p-4;
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable;
-	border-left: 1px solid #cbd5e1;
-	padding: 18px;
 }
+
 .controls-heading {
-	margin-bottom: 18px;
+	@apply mb-5;
 }
+
 h2 {
-	font: normal 26px var(--font-heading);
-	@apply m-0;
+	@apply m-0 font-heading text-2xl font-normal;
 }
+
 .control-section {
-	@apply min-w-0;
-	padding: 0 0 18px;
-	margin: 0 0 18px;
-	@apply border-0;
-	border-bottom: 1px solid #cbd5e1;
+	@apply mb-5 min-w-0 border-0 border-b border-slate-300 pb-5;
 }
+
 .control-section:last-child {
-	@apply border-b-0;
-	margin-bottom: 0;
+	@apply mb-0 border-b-0;
 }
+
 legend {
-	padding: 0;
-	margin-bottom: 12px;
-	font:
-		bold 11px ui-monospace,
-		monospace;
-	letter-spacing: 0.04em;
+	@apply mb-3 p-0 font-mono text-xs font-bold tracking-wide;
 }
+
 .model-picker {
-	@apply grid;
-	gap: 9px;
-	font:
-		bold 11px ui-monospace,
-		monospace;
+	@apply grid gap-2 font-mono text-xs font-bold;
 }
+
 select {
-	@apply max-w-full;
-	background: #f8fafc;
-	border: 1px solid #94a3b8;
-	@apply rounded-none;
-	color: #172033;
-	padding: 7px;
-	font:
-		11px ui-monospace,
-		monospace;
+	@apply max-w-full rounded-none border border-slate-400 bg-slate-50 p-2 font-mono text-xs text-slate-900;
 }
+
 .model-picker select {
-	@apply w-full;
-	padding: 11px 8px;
+	@apply w-full px-2 py-3;
 }
+
 .hint {
-	@apply text-slate-500;
-	font-size: 11px;
-	line-height: 1.6;
-	margin: 8px 0 0;
+	@apply mt-2 mb-0 text-xs leading-6 text-slate-500;
 }
+
 .toggle,
 .select-row {
-	@apply flex;
-	@apply items-center;
-	@apply justify-between;
-	@apply gap-3;
-	min-height: 36px;
-	font:
-		11px ui-monospace,
-		monospace;
+	@apply flex min-h-9 items-center justify-between gap-3 font-mono text-xs;
 }
+
 .toggle {
 	@apply cursor-pointer;
 }
+
 input[type="checkbox"] {
-	@apply accent-red-700;
-	width: 15px;
-	height: 15px;
+	@apply size-4 accent-red-700;
 }
+
 .slider {
-	@apply block;
-	margin: 12px 0;
-	font:
-		10px ui-monospace,
-		monospace;
+	@apply my-3 block font-mono text-xs;
 }
+
 .slider > span {
-	@apply flex;
-	@apply justify-between;
-	gap: 8px;
-	margin-bottom: 8px;
+	@apply mb-2 flex justify-between gap-2;
 }
+
 .slider output {
-	@apply font-bold;
-	@apply text-red-700;
+	@apply font-bold text-red-700;
 }
+
 .slider input {
-	@apply w-full;
-	@apply block;
-	@apply accent-red-700;
-	@apply cursor-ew-resize;
+	@apply block w-full cursor-ew-resize accent-red-700;
 }
+
 .manual-button {
-	@apply w-full;
-	margin-top: 10px;
-	font:
-		11px ui-monospace,
-		monospace;
+	@apply mt-3 w-full font-mono text-xs;
 }
+
 .api-example {
-	@apply grid;
-	grid-template-columns: 145px minmax(0, 1fr) 250px;
-	@apply items-center;
-	gap: 20px;
-	padding: 20px;
-	margin-top: 16px;
-	background: #172033;
-	@apply text-slate-100;
+	@apply mt-4 grid grid-cols-[145px_minmax(0,1fr)_250px] items-center gap-5 bg-slate-900 p-5 text-slate-100;
 }
+
 .api-example .eyebrow {
-	color: #fca5a5;
+	@apply text-red-300;
 }
+
 .api-example pre {
-	@apply overflow-x-auto;
-	@apply m-0;
-	font:
-		11px / 1.7 ui-monospace,
-		monospace;
+	@apply m-0 overflow-x-auto font-mono text-xs leading-6;
 }
+
 .api-example > p:last-child {
-	color: #94a3b8;
-	font-size: 12px;
-	line-height: 1.6;
-	@apply m-0;
+	@apply m-0 text-xs leading-6 text-slate-400;
 }
+
 footer {
-	@apply flex;
-	@apply justify-between;
-	gap: 16px;
-	padding-top: 18px;
-	font:
-		9px ui-monospace,
-		monospace;
-	@apply text-slate-500;
-	letter-spacing: 0.05em;
+	@apply flex justify-between gap-4 pt-5 font-mono text-xs tracking-wider text-slate-500;
 }
+
 .load-error {
-	@apply absolute;
-	@apply inset-0;
-	z-index: 1;
-	padding: clamp(1rem, 4vw, 3rem);
-	@apply flex;
-	@apply flex-col;
-	@apply justify-center;
-	@apply items-start;
-	@apply bg-slate-100;
-	@apply overflow-y-auto;
+	@apply absolute inset-0 z-10 flex flex-col items-start justify-center overflow-y-auto bg-slate-100 p-4 sm:p-8 lg:p-12;
 }
+
 .load-error p {
-	font:
-		12px / 1.7 ui-monospace,
-		monospace;
+	@apply my-4 font-mono text-xs leading-6;
 	overflow-wrap: anywhere;
-	margin: 1rem 0;
 }
+
 @media (max-width: 760px) {
 	.site-header > span {
-		display: none;
+		@apply hidden;
 	}
+
 	.intro {
-		@apply block;
-		padding-top: 1.5rem;
+		@apply block pt-6;
 	}
+
 	.intro > p {
-		margin-top: 14px;
+		@apply mt-3.5;
 	}
+
 	.workspace {
-		@apply flex;
-		@apply flex-col;
-		@apply h-auto;
+		@apply flex h-auto flex-col;
 	}
+
 	.viewer {
-		height: clamp(320px, 65dvh, 600px);
-		@apply flex-none;
+		@apply h-[clamp(320px,65dvh,600px)] flex-none;
 	}
+
 	.viewer-heading,
 	.specimen {
-		font-size: 8px;
-		gap: 8px;
+		@apply gap-2 text-xs;
 	}
+
 	.controls {
-		@apply overflow-visible;
-		@apply border-l-0;
-		border-top: 1px solid #cbd5e1;
+		@apply overflow-visible border-t border-l-0 border-slate-300;
 	}
+
 	.api-example {
-		grid-template-columns: minmax(0, 1fr);
-		gap: 12px;
+		@apply grid-cols-1 gap-3;
 	}
+
 	footer {
-		@apply flex-col;
-		font-size: 8px;
+		@apply flex-col text-xs;
 	}
 }

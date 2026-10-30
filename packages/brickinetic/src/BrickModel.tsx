@@ -1,12 +1,12 @@
-import { useFrame, useThree, type ThreeElements } from '@react-three/fiber'
+import { type ThreeElements, useFrame, useThree } from '@react-three/fiber'
 import {
+	type RefObject,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
-	type RefObject,
 } from 'react'
 import type { Group } from 'three'
 import { cloneModel, retainModel } from './model-resource.js'
@@ -14,9 +14,9 @@ import { getCenterOffset, setEdgeVisibility } from './model-view.js'
 import {
 	advanceMotion,
 	initialMotionState,
+	type MotionConfig,
 	motionPose,
 	validateMotion,
-	type MotionConfig,
 } from './motion.js'
 
 export interface BrickModelProps {
@@ -39,7 +39,7 @@ function useReducedMotion(
 		reduced: boolean
 	}>()
 	useEffect(() => {
-		if (!requested || policy === 'never') {
+		if (!requested || policy === 'never' || policy === 'always') {
 			setPreference(undefined)
 			return
 		}
@@ -61,7 +61,9 @@ function useReducedMotion(
 		}
 	}, [policy, requested])
 	return (
-		policy === 'never' || (preference?.policy === policy && !preference.reduced)
+		policy !== 'always' &&
+		(policy === 'never' ||
+			(preference?.policy === policy && !preference.reduced))
 	)
 }
 

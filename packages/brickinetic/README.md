@@ -28,16 +28,16 @@ const Sample = () => (
 
 ### Props
 
-| Prop       | Type               | Default     | Behavior                                                                         |
-| ---------- | ------------------ | ----------- | -------------------------------------------------------------------------------- |
-| `src`      | `string`           | required    | URL of an MPD; embedded and externally resolved geometry are supported.        |
-| `partsLibraryPath` | `string` | hosted default | Absolute HTTP(S) or origin-relative root of a LDraw library. |
-| `position` | R3F group position | `[0, 0, 0]` | Consumer translation, in LDraw units.                                            |
-| `rotation` | R3F group rotation | `[0, 0, 0]` | Consumer Euler rotation, in radians.                                             |
-| `scale`    | R3F group scale    | `[1, 1, 1]` | Consumer scale.                                                                  |
-| `center`   | `boolean`          | `false`     | Moves the oriented bounds center to the local origin before consumer transforms. |
-| `edges`    | `boolean`          | `true`      | Shows or hides ordinary and conditional LDraw edges for this instance.           |
-| `motion`   | `MotionConfig`     | omitted     | Configures optional whole-model float and spin presets.                          |
+| Prop               | Type               | Default        | Behavior                                                                         |
+| ------------------ | ------------------ | -------------- | -------------------------------------------------------------------------------- |
+| `src`              | `string`           | required       | URL of an MPD; embedded and externally resolved geometry are supported.          |
+| `partsLibraryPath` | `string`           | hosted default | Absolute HTTP(S) or origin-relative root of a LDraw library.                     |
+| `position`         | R3F group position | `[0, 0, 0]`    | Consumer translation, in LDraw units.                                            |
+| `rotation`         | R3F group rotation | `[0, 0, 0]`    | Consumer Euler rotation, in radians.                                             |
+| `scale`            | R3F group scale    | `[1, 1, 1]`    | Consumer scale.                                                                  |
+| `center`           | `boolean`          | `false`        | Moves the oriented bounds center to the local origin before consumer transforms. |
+| `edges`            | `boolean`          | `true`         | Shows or hides ordinary and conditional LDraw edges for this instance.           |
+| `motion`           | `MotionConfig`     | omitted        | Configures optional whole-model float and spin presets.                          |
 
 ### Motion
 
@@ -58,7 +58,7 @@ An object enables its preset unless `enabled` is false; omission or `false` disa
 
 Float moves along its selected base-local axis using `amplitude × sin(phase)`. Its displacement is affected by the consumer's rotation and scale, so scale also scales the float distance. Spin pivots around the model's local origin, which is the bounds center when `center` is true and the model origin otherwise. The consumer's `position`, `rotation`, and `scale` remain the outer base transform.
 
-Changing an active speed preserves accumulated phase; changing amplitude takes effect at the current phase. Changing either axis resets that preset phase to zero and clears the previous axis offset. Disabling a preset, or reenabling it after it was disabled, restores/restarts it at zero while any other active preset continues. By default, motion follows the system `prefers-reduced-motion` setting, including changes while mounted. Set `reducedMotion: 'never'` to opt out; when the preference API is unavailable, motion proceeds.
+Changing an active speed preserves accumulated phase; changing amplitude takes effect at the current phase. Changing either axis resets that preset phase to zero and clears the previous axis offset. Disabling a preset, or reenabling it after it was disabled, restores/restarts it at zero while any other active preset continues. By default, motion follows the system `prefers-reduced-motion` setting, including changes while mounted. Set `reducedMotion: 'always'` to disable motion regardless of system preference, or `'never'` to allow motion regardless of preference. `always` does not subscribe to preference changes. Switching from `always` to an allowed policy restarts motion from zero; when the preference API is unavailable, system policy allows motion.
 
 Motion uses elapsed frame time. Continuous and demand Canvas loops render it while active; a demand loop is invalidated for motion frames. With R3F's `frameloop="never"`, the consumer must advance the Canvas for motion to progress. Large elapsed intervals, such as returning to a suspended tab, are applied as elapsed time and can produce a visible jump.
 
@@ -71,7 +71,7 @@ Embedded definitions take precedence. External parts and their nested dependenci
 
 ### Parts hosting and custom libraries
 
-The default is `https://raw.githubusercontent.com/kulits/ldraw-parts/f3d0c2256398c28fbb682f4bb08c59eed81fd4f1/ldraw/`, a pinned third-party GitHub raw mirror of The LDraw Parts Library. Pinning stabilizes content, not host availability. The official library endpoint was tested but does not allow the cross-origin browser requests needed by this component. jsDelivr was also tested and rejected because the full mirror exceeds its package-size limit.
+The default is `https://raw.githubusercontent.com/kulits/ldraw-parts/f3d0c2256398c28fbb682f4bb08c59eed81fd4f1/ldraw/`, a pinned third-party GitHub raw mirror of The LDraw Parts Library. Pinning stabilizes content, not host availability. The official library endpoint was tested but does not allow the cross-origin browser requests needed by this component. jsDelivr was also tested but still returns HTTP 403 for required Spaceship parts, so it is not a complete source for the supplied models.
 
 ```tsx
 <BrickModel src='/models/ship.mpd' partsLibraryPath='/ldraw/' center />
@@ -81,6 +81,6 @@ Host a LDraw library with its `parts/`, `parts/s/`, `p/` (including resolution s
 
 Use Suspense for pending loads and an error boundary around the Canvas for failures. Errors name the model and unresolved part, including nested parts. Network errors, unavailable files, invalid responses and host restrictions can all prevent resolution. After supplying the missing resource or repairing the host, reset the error boundary and remount to retry. Different effective library URLs have isolated model caches. Requests are deduplicated for concurrent instances of the same model/library; unused scene resources are released after the last consumer.
 
-The upstream resolver probes multiple directories, so a 404 for one candidate can precede successful resolution elsewhere. Large models make many requests on their first load. Self-contained MPDs need no external geometry requests, but the model and bundled color configuration must still be available locally for offline use. Syntax and extension support follows the installed Three.js loader; arbitrary LDraw extensions, including texture mapping, are not promised.
+The upstream resolver probes multiple directories, so a 404 for one candidate can precede successful resolution elsewhere. Large models make many requests on their first load. Brickinetic shares parsed model resources by source and effective parts-library path while consumers are mounted, then releases unused resources after a 1000 ms grace period. Three.js also caches parsed parts for the lifetime of each loader. Normal browser HTTP caching may reuse downloaded files, but its behavior depends on the browser and server headers. Brickinetic does not provide durable offline caching or enable Three.js's global cache. Self-contained MPDs need no external geometry requests, but the model and bundled color configuration must still be available locally for offline use. Syntax and extension support follows the installed Three.js loader; arbitrary LDraw extensions, including texture mapping, are not promised.
 
 The supported Three.js range is deliberately limited to r186. A small compatibility adapter observes its dependency cache because this version can otherwise omit failed nested parts. Recheck that adapter before expanding the peer range. OMR demo sources and attribution are documented in the playground; part files retain their own license notices.
