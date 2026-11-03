@@ -50,6 +50,7 @@ export function createBrickEffectController(
 
 export type ExplosionConfig = EffectProgress & {
 	distance?: number
+	distanceMultiplier?: number
 	origin?: readonly [number, number, number]
 }
 
@@ -180,7 +181,24 @@ export function applyBrickEffect(
 	for (const binding of bindings) midpoint(binding, prepared.source)
 	if (kind === 'explosion') {
 		const explosion = config as ExplosionConfig
-		const distance = explosion.distance ?? 20
+		if (
+			explosion.distance !== undefined &&
+			explosion.distanceMultiplier !== undefined
+		)
+			throw new Error(
+				'Configure either distance or distanceMultiplier, not both',
+			)
+		const multiplier = explosion.distanceMultiplier
+		if (
+			multiplier !== undefined &&
+			(!Number.isFinite(multiplier) || multiplier < 0)
+		)
+			throw new Error('distanceMultiplier must be finite and nonnegative')
+		const bounds = prepared.bounds
+		const size = bounds
+			? Math.max(...bounds.max.map((value, i) => value - bounds.min[i]))
+			: 0
+		const distance = explosion.distance ?? (multiplier ?? 1) * size * 0.5
 		if (!Number.isFinite(distance) || distance < 0)
 			throw new Error('distance must be finite and nonnegative')
 		const origin = explosion.origin ?? prepared.center ?? [0, 0, 0]

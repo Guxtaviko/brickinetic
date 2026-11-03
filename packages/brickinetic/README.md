@@ -60,7 +60,7 @@ controller.setProgress(0.5) // May be set before the model mounts.
 
 Explosion distance and origin, plus assembly offsets, use oriented model-local
 LDraw units before centering. Explosion defaults to the assembled bounds center
-and distance 20; an origin-coincident unit stays still. Assembly divides units
+and a distance multiplier of 1, corresponding to half the longest assembled bounding-box dimension; an origin-coincident unit stays still. Set `distanceMultiplier` to another finite nonnegative multiple of that half-dimension, or set `distance` for an absolute distance in LDraw units. Do not supply both `distance` and `distanceMultiplier`. Assembly divides units
 into equal progress stages, ordered by bounds center on Y, then numeric
 occurrence path. Axis and direction can be set with `axis` and `direction`.
 This is visual ordering, not authored construction order. For N units, unit i

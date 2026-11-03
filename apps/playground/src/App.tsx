@@ -302,6 +302,9 @@ export default function App() {
 		'none',
 	)
 	const [effectProgress, setEffectProgress] = useState(0)
+	const [relativeDistance, setRelativeDistance] = useState(true)
+	const [explosionDistance, setExplosionDistance] = useState(24)
+	const [explosionMultiplier, setExplosionMultiplier] = useState(1)
 	const [controllerSource, setControllerSource] = useState(false)
 	const [driveEffect, setDriveEffect] = useState(false)
 	const effectController = useMemo(() => createBrickEffectController(), [])
@@ -309,10 +312,28 @@ export default function App() {
 		() =>
 			effect === 'explosion'
 				? controllerSource
-					? { controller: effectController, distance: 24 }
-					: { progress: effectProgress, distance: 24 }
+					? {
+							controller: effectController,
+							...(relativeDistance
+								? { distanceMultiplier: explosionMultiplier }
+								: { distance: explosionDistance }),
+						}
+					: {
+							progress: effectProgress,
+							...(relativeDistance
+								? { distanceMultiplier: explosionMultiplier }
+								: { distance: explosionDistance }),
+						}
 				: undefined,
-		[effect, controllerSource, effectController, effectProgress],
+		[
+			effect,
+			controllerSource,
+			effectController,
+			effectProgress,
+			relativeDistance,
+			explosionMultiplier,
+			explosionDistance,
+		],
 	)
 	const assembly = useMemo<AssemblyConfig | undefined>(
 		() =>
@@ -616,6 +637,40 @@ export default function App() {
 							value={effectProgress}
 							onChange={setEffectProgress}
 						/>
+						{effect === 'explosion' && (
+							<>
+								<Toggle
+									label='Use distance units'
+									checked={!relativeDistance}
+									onChange={(checked) => setRelativeDistance(!checked)}
+								/>
+								<label className='select-row'>
+									{relativeDistance
+										? 'Distance multiplier'
+										: 'Explosion distance (LU)'}
+									<input
+										aria-label={
+											relativeDistance
+												? 'Distance multiplier'
+												: 'Explosion distance'
+										}
+										type='number'
+										min={0}
+										step={relativeDistance ? 0.1 : 1}
+										value={
+											relativeDistance ? explosionMultiplier : explosionDistance
+										}
+										onChange={(event) => {
+											const value = event.currentTarget.valueAsNumber
+											if (Number.isFinite(value) && value >= 0)
+												(relativeDistance
+													? setExplosionMultiplier
+													: setExplosionDistance)(value)
+										}}
+									/>
+								</label>
+							</>
+						)}
 						<Toggle
 							label='Use controller source'
 							checked={controllerSource}
@@ -719,7 +774,7 @@ export default function App() {
 			<section className='api-example' aria-label='Consumer code example'>
 				<p className='eyebrow'>02 / PUBLIC API</p>
 				<pre>
-					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} }${reducedMotion === 'system' ? '' : `,\n    reducedMotion: '${reducedMotion}'`} }}\n  ${effect === 'explosion' ? `explosion={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`} }}` : effect === 'assembly' ? `assembly={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`} }}` : ''} />`}</code>
+					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} }${reducedMotion === 'system' ? '' : `,\n    reducedMotion: '${reducedMotion}'`} }}\n  ${effect === 'explosion' ? `explosion={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`}, ${relativeDistance ? `distanceMultiplier: ${explosionMultiplier}` : `distance: ${explosionDistance}`} }}` : effect === 'assembly' ? `assembly={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`} }}` : ''} />`}</code>
 				</pre>
 				<pre>
 					<code>{`import { useFrame } from '@react-three/fiber'\nimport { BrickModel, createBrickEffectController } from 'brickinetic'\n\nconst controller = createBrickEffectController()\n\n// Inside a component within your Canvas:\nuseFrame((_, delta) => {\n  controller.setProgress(controller.getProgress() + delta * 0.1)\n})\n\n<BrickModel src="${src}" explosion={{ controller }} />`}</code>

@@ -156,6 +156,55 @@ test('explosion clamps endpoints and applies distance from the configured origin
 		assert.ok(bindings[i].roots[0].position.distanceTo(baseline[i]) < 1e-6)
 })
 
+test('model-relative explosion uses bounds and validates configuration', () => {
+	const { prepared, bindings } = setup()
+	const bounds = prepared.bounds
+	assert.ok(bounds)
+	const size = Math.max(...bounds.max.map((v, i) => v - bounds.min[i]))
+	const baseline = bindings.map(({ roots }) => roots[0].position.clone())
+	applyBrickEffect(bindings, prepared, 1, { progress: 1, origin: [0, 0, 0] })
+	for (let i = 0; i < bindings.length; i++)
+		assert.ok(
+			Math.abs(
+				bindings[i].roots[0].position.distanceTo(baseline[i]) - size * 0.5,
+			) < 1e-6,
+		)
+	applyBrickEffect(bindings, prepared, 1, {
+		progress: 1,
+		distanceMultiplier: 2,
+		origin: [0, 0, 0],
+	})
+	for (let i = 0; i < bindings.length; i++)
+		assert.ok(
+			Math.abs(bindings[i].roots[0].position.distanceTo(baseline[i]) - size) <
+				1e-6,
+		)
+	applyBrickEffect(bindings, prepared, 0, {
+		progress: 0,
+		distanceMultiplier: 1,
+	})
+	for (let i = 0; i < bindings.length; i++)
+		assert.ok(bindings[i].roots[0].position.distanceTo(baseline[i]) < 1e-6)
+	for (const distanceMultiplier of [-1, Infinity, NaN])
+		assert.throws(
+			() =>
+				applyBrickEffect(bindings, prepared, 1, {
+					progress: 1,
+					distanceMultiplier,
+				}),
+			/distanceMultiplier/,
+		)
+	assert.throws(
+		() =>
+			applyBrickEffect(bindings, prepared, 1, {
+				progress: 1,
+				distance: 1,
+				distanceMultiplier: 1,
+			}),
+		/either distance/,
+	)
+})
+
 test('assembly entrances seek with easing and react to reduced motion', () => {
 	const { prepared, bindings } = setup()
 	const config = {
