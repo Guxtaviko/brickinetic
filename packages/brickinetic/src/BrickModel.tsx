@@ -12,6 +12,15 @@ import {
 } from 'react'
 import type { Group } from 'three'
 import {
+	type AssemblyConfig,
+	applyBrickEffect,
+	bindBrickEffect,
+	captureBrickEffectVisibility,
+	type ExplosionConfig,
+	restoreBrickEffects,
+	validateEffectConfig,
+} from './brick-effects.js'
+import {
 	cloneModel,
 	getConstructionBindings,
 	retainModel,
@@ -34,6 +43,8 @@ export interface BrickModelProps {
 	center?: boolean
 	edges?: boolean
 	motion?: MotionConfig
+	explosion?: ExplosionConfig
+	assembly?: AssemblyConfig
 }
 
 function useReducedMotion(
@@ -122,17 +133,21 @@ export function BrickModel({
 	center = false,
 	edges = true,
 	motion,
+	explosion,
+	assembly,
 }: BrickModelProps) {
 	validateMotion(motion)
+	validateEffectConfig(explosion, assembly)
 	const requested =
 		!!motion &&
 		((!!motion.float && motion.float.enabled !== false) ||
 			(!!motion.spin && motion.spin.enabled !== false))
 	const permitted = useReducedMotion(motion?.reducedMotion, requested)
-	const model = useMemo(
-		() => cloneModel(src, partsLibraryPath),
-		[src, partsLibraryPath],
-	)
+	const model = useMemo(() => {
+		const clone = cloneModel(src, partsLibraryPath)
+		captureBrickEffectVisibility(clone)
+		return clone
+	}, [src, partsLibraryPath])
 	const centerOffset = useMemo(
 		() =>
 			getCenterOffset(model, center, getConstructionBindings(model)?.prepared),
@@ -142,8 +157,41 @@ export function BrickModel({
 	const spinRef = useRef<Group>(null)
 	useEffect(() => retainModel(src, partsLibraryPath), [src, partsLibraryPath])
 	useLayoutEffect(() => setEdgeVisibility(model, edges), [model, edges])
-	const active = permitted && requested
+	const construction = getConstructionBindings(model)
+	const effectReduced = useReducedMotion(motion?.reducedMotion, !!assembly)
 	const invalidate = useThree((root) => root.invalidate)
+	useLayoutEffect(() => {
+		if (!construction || (!explosion && !assembly)) return
+		const config = (explosion ?? assembly) as ExplosionConfig | AssemblyConfig
+		const update = (progress: number) => {
+			applyBrickEffect(
+				construction.units,
+				construction.prepared,
+				progress,
+				config,
+				!!assembly && !effectReduced,
+				assembly ? 'assembly' : 'explosion',
+				edges,
+			)
+			invalidate()
+		}
+		const unbind = bindBrickEffect(config, update)
+		return () => {
+			unbind()
+			restoreBrickEffects(construction.units)
+			setEdgeVisibility(model, edges)
+			invalidate()
+		}
+	}, [
+		construction,
+		explosion,
+		assembly,
+		effectReduced,
+		invalidate,
+		model,
+		edges,
+	])
+	const active = permitted && requested
 	useLayoutEffect(() => {
 		if (!active) {
 			if (floatRef.current) floatRef.current.position.set(0, 0, 0)

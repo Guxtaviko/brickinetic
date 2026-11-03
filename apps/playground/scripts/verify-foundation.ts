@@ -17,6 +17,11 @@ type State = {
 	units: number
 	renderables: number
 	probe: (distance: number) => Probe
+	effectProbe: (progress: number) => {
+		changed: boolean
+		independent: boolean
+		restored: boolean
+	}
 	center: (enabled: boolean) => number[]
 	pose: () => { float: number[]; spin: number; frameCount: number }
 	advance: () => void
@@ -59,6 +64,11 @@ const checks: Record<string, unknown> = {}
 try {
 	const page = await context.newPage()
 	await ready(page, 'loop=always')
+	const effect = await page.evaluate(() =>
+		(window as unknown as { foundation: State }).foundation.effectProbe(0.8),
+	)
+	assert.deepEqual(effect, { changed: true, independent: true, restored: true })
+	checks.effect = effect
 	const before = await page.evaluate(() =>
 		(window as unknown as { foundation: State }).foundation.probe(0),
 	)
@@ -244,6 +254,42 @@ try {
 			(window as unknown as { preferenceTracker: { active: number } })
 				.preferenceTracker.active === 0,
 	)
+	for (const loop of ['always', 'demand', 'never']) {
+		await page.getByLabel('Render loop', { exact: true }).selectOption(loop)
+		await page
+			.getByLabel('Reduced motion', { exact: true })
+			.selectOption('system')
+		await page.getByLabel('Construction effect').selectOption('assembly')
+		await page.getByLabel('Use controller source').check()
+		await page.waitForFunction(
+			() =>
+				(window as unknown as { preferenceTracker: { active: number } })
+					.preferenceTracker.active === 1,
+		)
+		const progress = page.getByRole('slider', { name: 'Effect progress' })
+		await progress.fill('0.2')
+		if (loop === 'never') {
+			await page.getByRole('button', { name: 'Advance 1/60 second' }).click()
+			const beforeSeek = await page.locator('canvas').screenshot()
+			await progress.fill('0.8')
+			await page.waitForTimeout(200)
+			assert.deepEqual(await page.locator('canvas').screenshot(), beforeSeek)
+			await page.getByRole('button', { name: 'Advance 1/60 second' }).click()
+			assert.notDeepEqual(await page.locator('canvas').screenshot(), beforeSeek)
+		} else if (loop === 'demand') {
+			await page.waitForTimeout(200)
+			const beforeSeek = await page.locator('canvas').screenshot()
+			await progress.fill('0.6')
+			await page.waitForTimeout(200)
+			assert.notDeepEqual(await page.locator('canvas').screenshot(), beforeSeek)
+		} else await progress.fill('0.6')
+		await page.getByLabel('Construction effect').selectOption('none')
+		await page.waitForFunction(
+			() =>
+				(window as unknown as { preferenceTracker: { active: number } })
+					.preferenceTracker.active === 0,
+		)
+	}
 	await page.getByLabel('Reduced motion', { exact: true }).selectOption('never')
 	await page.getByLabel('Spin', { exact: true }).check()
 	await page.waitForTimeout(500)
@@ -264,6 +310,17 @@ try {
 	)
 	await page.getByLabel('Edge lines', { exact: true }).uncheck()
 	await page.getByLabel('Center bounds', { exact: true }).check()
+	await page.getByLabel('Construction effect').selectOption('explosion')
+	await page.getByRole('slider', { name: 'Effect progress' }).fill('0.7')
+	await page.getByRole('slider', { name: 'Position X' }).fill('30')
+	await page.getByRole('slider', { name: 'Rotation Y' }).fill('30')
+	await page.getByRole('slider', { name: 'Uniform scale' }).fill('1.2')
+	await page.getByLabel('Model', { exact: true }).selectOption('speedboat')
+	await page
+		.getByTestId('model-status')
+		.filter({ hasText: 'Model ready' })
+		.waitFor({ timeout: 120_000 })
+	await page.getByLabel('Construction effect').selectOption('none')
 	await page.getByLabel('Render loop', { exact: true }).selectOption('never')
 	await page.getByRole('button', { name: 'Advance 1/60 second' }).click()
 	assert.equal(await page.locator('canvas').count(), 1)
@@ -277,7 +334,8 @@ try {
 		manualFrame: true,
 	}
 	await writeFile(
-		'../../docs/evidence/m3.1-browser.json',
+		process.env.FOUNDATION_BROWSER_OUTPUT ??
+			'../../docs/evidence/m3.1-browser.json',
 		`${JSON.stringify(checks, null, 2)}\n`,
 	)
 	console.log(JSON.stringify(checks))

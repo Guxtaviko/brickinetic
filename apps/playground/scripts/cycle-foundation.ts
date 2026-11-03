@@ -10,6 +10,8 @@ const browser = await chromium.launch({
 		'--enable-unsafe-swiftshader',
 	],
 })
+const output =
+	process.env.FOUNDATION_CYCLE_OUTPUT ?? '../../docs/evidence/m3.1-cycles.json'
 const context = await browser.newContext({
 	viewport: { width: 960, height: 720 },
 	deviceScaleFactor: 1,
@@ -17,7 +19,7 @@ const context = await browser.newContext({
 })
 const results: Record<string, unknown[]> =
 	process.env.FOUNDATION_RESUME === '1'
-		? JSON.parse(await readFile('../../docs/evidence/m3.1-cycles.json', 'utf8'))
+		? JSON.parse(await readFile(output, 'utf8'))
 		: {}
 try {
 	for (const model of (
@@ -25,7 +27,7 @@ try {
 	).split(',')) {
 		const page = await context.newPage()
 		await page.goto(
-			`${process.env.FOUNDATION_URL ?? 'http://127.0.0.1:4173'}/foundation.html?model=${model}`,
+			`${process.env.FOUNDATION_URL ?? 'http://127.0.0.1:4173'}/foundation.html?model=${model}&cycleEffect=${process.env.FOUNDATION_CYCLE_EFFECT === '1' ? '1' : '0'}`,
 		)
 		await page.waitForFunction(
 			() => {
@@ -57,10 +59,7 @@ try {
 				).foundation.cycle(),
 			)
 			results[model].push(result)
-			await writeFile(
-				'../../docs/evidence/m3.1-cycles.json',
-				`${JSON.stringify(results, null, 2)}\n`,
-			)
+			await writeFile(output, `${JSON.stringify(results, null, 2)}\n`)
 			console.log(`${model} cycle ${index + 1}/10`)
 		}
 		await page.close()

@@ -24,6 +24,9 @@ const {
 const { setEdgeVisibility } = (await import(
 	new URL('../../dist/model-view.js', import.meta.url).href
 )) as typeof import('../dist/model-view.js')
+const { applyBrickEffect, restoreBrickEffects } = (await import(
+	new URL('../../dist/brick-effects.js', import.meta.url).href
+)) as typeof import('../dist/brick-effects.js')
 
 const fixture = await readFile(
 	new URL('../../spec/fixtures/car-self-contained.mpd', import.meta.url),
@@ -152,6 +155,11 @@ test('keeps shared resources through StrictMode replay and concurrent consumers'
 			const disposals = trackDisposals(model)
 
 			const strictSetup = retainModel(src)
+			applyBrickEffect(strictBinding.units, strictBinding.prepared, 0.5, {
+				progress: 0.5,
+			})
+			restoreBrickEffects(strictBinding.units)
+			disposals.assertNotDisposed()
 			strictSetup()
 			const strictReplay = retainModel(src)
 			const concurrentConsumer = retainModel(src)

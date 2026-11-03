@@ -1,5 +1,12 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { BrickModel, type MotionConfig } from 'brickinetic'
+import {
+	type AssemblyConfig,
+	type BrickEffectController,
+	BrickModel,
+	createBrickEffectController,
+	type ExplosionConfig,
+	type MotionConfig,
+} from 'brickinetic'
 import {
 	Component,
 	type ReactNode,
@@ -88,7 +95,12 @@ function ModelScene({
 	src,
 	center,
 	edges,
+	xyzPreview,
 	motion,
+	explosion,
+	assembly,
+	effectController,
+	driveEffect,
 	positionX,
 	rotationY,
 	scale,
@@ -97,7 +109,12 @@ function ModelScene({
 	src: string
 	center: boolean
 	edges: boolean
+	xyzPreview: boolean
 	motion: MotionConfig
+	explosion?: ExplosionConfig
+	assembly?: AssemblyConfig
+	effectController: BrickEffectController
+	driveEffect: boolean
 	positionX: number
 	rotationY: number
 	scale: number
@@ -107,6 +124,12 @@ function ModelScene({
 	const { camera, gl, invalidate, frameloop, size } = useThree()
 	const controlsRef = useRef<OrbitControls | null>(null)
 	const [guideSize, setGuideSize] = useState(30)
+	const effectPhase = useRef(0)
+	useFrame((_, delta) => {
+		if (!driveEffect) return
+		effectPhase.current = (effectPhase.current + delta * 0.25) % 1
+		effectController.setProgress(effectPhase.current)
+	})
 	useLayoutEffect(() => {
 		const controls = new OrbitControls(camera, gl.domElement)
 		controlsRef.current = controls
@@ -158,14 +181,23 @@ function ModelScene({
 					center={center}
 					edges={edges}
 					motion={motion}
+					explosion={explosion}
+					assembly={assembly}
 					position={[positionX, 0, 0]}
 					rotation={rotation}
 					scale={scale}
 				/>
 			</group>
-			<group position={[positionX, 0, 0]} rotation={rotation} scale={scale}>
-				<axesHelper args={[guideSize]} />
-			</group>
+			{xyzPreview && (
+				<group
+					name='xyz-preview'
+					position={[positionX, 0, 0]}
+					rotation={rotation}
+					scale={scale}
+				>
+					<axesHelper args={[guideSize]} />
+				</group>
+			)}
 		</>
 	)
 }
@@ -265,6 +297,46 @@ export default function App() {
 	const [status, setStatus] = useState('Loading model and parts')
 	const [center, setCenter] = useState(true)
 	const [edges, setEdges] = useState(true)
+	const [xyzPreview, setXyzPreview] = useState(true)
+	const [effect, setEffect] = useState<'none' | 'explosion' | 'assembly'>(
+		'none',
+	)
+	const [effectProgress, setEffectProgress] = useState(0)
+	const [controllerSource, setControllerSource] = useState(false)
+	const [driveEffect, setDriveEffect] = useState(false)
+	const effectController = useMemo(() => createBrickEffectController(), [])
+	const explosion = useMemo<ExplosionConfig | undefined>(
+		() =>
+			effect === 'explosion'
+				? controllerSource
+					? { controller: effectController, distance: 24 }
+					: { progress: effectProgress, distance: 24 }
+				: undefined,
+		[effect, controllerSource, effectController, effectProgress],
+	)
+	const assembly = useMemo<AssemblyConfig | undefined>(
+		() =>
+			effect === 'assembly'
+				? controllerSource
+					? {
+							controller: effectController,
+							entrance: 'translate',
+							offset: [0, 28, 0],
+							easing: 'smoothstep',
+						}
+					: {
+							progress: effectProgress,
+							entrance: 'translate',
+							offset: [0, 28, 0],
+							easing: 'smoothstep',
+						}
+				: undefined,
+		[effect, controllerSource, effectController, effectProgress],
+	)
+	useEffect(
+		() => effectController.setProgress(effectProgress),
+		[effectController, effectProgress],
+	)
 	const [floatEnabled, setFloatEnabled] = useState(true)
 	const [spinEnabled, setSpinEnabled] = useState(true)
 	const [floatAxis, setFloatAxis] = useState<Axis>('y')
@@ -367,7 +439,14 @@ export default function App() {
 											src={src}
 											center={center}
 											edges={edges}
+											xyzPreview={xyzPreview}
 											motion={motion}
+											explosion={explosion}
+											assembly={assembly}
+											effectController={effectController}
+											driveEffect={
+												driveEffect && controllerSource && effect !== 'none'
+											}
 											positionX={positionX}
 											rotationY={rotationY}
 											scale={scale}
@@ -386,11 +465,24 @@ export default function App() {
 							<i />
 							{status}
 						</div>
-						<figure className='axis-key' aria-label='coordinate axes'>
-							<span className='axis-x'>X</span>
-							<span className='axis-y'>Y</span>
-							<span className='axis-z'>Z</span>
-						</figure>
+						<div className='axis-preview'>
+							<label className='axis-preview-toggle'>
+								<input
+									aria-label='XYZ preview'
+									type='checkbox'
+									checked={xyzPreview}
+									onChange={(event) => setXyzPreview(event.target.checked)}
+								/>
+								<span>XYZ preview</span>
+							</label>
+							{xyzPreview && (
+								<figure className='axis-key' aria-label='coordinate axes'>
+									<span className='axis-x'>X</span>
+									<span className='axis-y'>Y</span>
+									<span className='axis-z'>Z</span>
+								</figure>
+							)}
+						</div>
 					</div>
 					<div className='specimen'>
 						<span>
@@ -501,6 +593,45 @@ export default function App() {
 						</p>
 					</fieldset>
 					<fieldset className='control-section'>
+						<legend>Construction effects</legend>
+						<label className='select-row'>
+							Effect
+							<select
+								aria-label='Construction effect'
+								value={effect}
+								onChange={(event) =>
+									setEffect(event.target.value as typeof effect)
+								}
+							>
+								<option value='none'>None</option>
+								<option value='explosion'>Explosion</option>
+								<option value='assembly'>Assembly</option>
+							</select>
+						</label>
+						<Slider
+							label='Effect progress'
+							min={0}
+							max={1}
+							step={0.01}
+							value={effectProgress}
+							onChange={setEffectProgress}
+						/>
+						<Toggle
+							label='Use controller source'
+							checked={controllerSource}
+							onChange={setControllerSource}
+						/>
+						<Toggle
+							label='Drive from consumer useFrame'
+							checked={driveEffect}
+							onChange={setDriveEffect}
+						/>
+						<p className='hint'>
+							The slider seeks either public progress source. The optional frame
+							driver is owned by this playground and stops when disabled.
+						</p>
+					</fieldset>
+					<fieldset className='control-section'>
 						<legend>Transform</legend>
 						<Slider
 							label='Position X'
@@ -588,7 +719,10 @@ export default function App() {
 			<section className='api-example' aria-label='Consumer code example'>
 				<p className='eyebrow'>02 / PUBLIC API</p>
 				<pre>
-					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} },\n    reducedMotion: '${reducedMotion}' }} />`}</code>
+					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} }${reducedMotion === 'system' ? '' : `,\n    reducedMotion: '${reducedMotion}'`} }}\n  ${effect === 'explosion' ? `explosion={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`} }}` : effect === 'assembly' ? `assembly={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`} }}` : ''} />`}</code>
+				</pre>
+				<pre>
+					<code>{`import { useFrame } from '@react-three/fiber'\nimport { BrickModel, createBrickEffectController } from 'brickinetic'\n\nconst controller = createBrickEffectController()\n\n// Inside a component within your Canvas:\nuseFrame((_, delta) => {\n  controller.setProgress(controller.getProgress() + delta * 0.1)\n})\n\n<BrickModel src="${src}" explosion={{ controller }} />`}</code>
 				</pre>
 				<p>
 					Use inside your Canvas and Suspense boundary. Missing parts reach your

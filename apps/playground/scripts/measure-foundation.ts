@@ -15,6 +15,8 @@ const output =
 const models = (
 	process.env.FOUNDATION_MODELS ?? 'car,speedboat,spaceship'
 ).split(',')
+const effects = (process.env.FOUNDATION_EFFECTS ?? 'none').split(',')
+const effectRuns = process.env.FOUNDATION_EFFECTS !== undefined
 const hashes: Record<string, string> = {}
 const sizes: Record<string, number> = {}
 const codeHashes: Record<string, string> = {}
@@ -22,6 +24,9 @@ for (const path of [
 	'src/foundation.tsx',
 	'../../packages/brickinetic/src/construction-units.ts',
 	'../../packages/brickinetic/src/model-resource.ts',
+	'../../packages/brickinetic/src/brick-effects.ts',
+	'../../packages/brickinetic/src/model-view.ts',
+	'scripts/measure-foundation.ts',
 ])
 	codeHashes[path] = createHash('sha256')
 		.update(await readFile(path))
@@ -84,6 +89,8 @@ const report = {
 	windowMs,
 	runs,
 	motion,
+	single,
+	effects,
 	cache:
 		'single browser context; first request cold, subsequent HTTP cache subject to server headers',
 	results,
@@ -97,6 +104,8 @@ if (process.env.FOUNDATION_RESUME === '1') {
 		previous.windowMs !== windowMs ||
 		previous.runs !== runs ||
 		previous.motion !== motion ||
+		(previous.single ?? false) !== single ||
+		JSON.stringify(previous.effects ?? ['none']) !== JSON.stringify(effects) ||
 		previous.browser !== report.browser
 	)
 		throw new Error(
@@ -109,98 +118,110 @@ if (process.env.FOUNDATION_RESUME === '1') {
 const save = () => writeFile(output, `${JSON.stringify(report, null, 2)}\n`)
 try {
 	for (const model of models)
-		for (const baseline of single ? [false] : [true, false])
-			for (const instances of single ? [2] : [1, 2])
+		for (const baseline of effectRuns || single ? [false] : [true, false])
+			for (const instances of single ? [2] : effectRuns ? [1] : [1, 2])
 				for (const edges of single ? [true] : [false, true])
 					for (let run = 0; run < runs; run++) {
-						const config = { model, baseline, instances, edges, run }
-						if (
-							results.some(
-								(row) =>
-									row.model === model &&
-									row.baseline === baseline &&
-									row.instances === instances &&
-									row.edges === edges &&
-									row.run === run,
+						for (const effect of effects) {
+							const config = { model, baseline, instances, edges, effect, run }
+							if (
+								results.some(
+									(row) =>
+										row.model === model &&
+										row.baseline === baseline &&
+										row.instances === instances &&
+										row.edges === edges &&
+										(row.effect ?? 'none') === effect &&
+										row.run === run,
+								)
 							)
-						)
-							continue
-						const page = await context.newPage()
-						try {
-							await page.goto(
-								`${base}/foundation.html?model=${model}&baseline=${Number(baseline)}&instances=${instances}&edges=${Number(edges)}&motion=${Number(motion)}`,
-								{ waitUntil: 'domcontentloaded' },
-							)
-							await page.waitForFunction(
-								() => {
-									const state = (
-										window as unknown as {
-											foundation: { ready: boolean; error: string | null }
-										}
-									).foundation
-									return state?.ready || state?.error
-								},
-								undefined,
-								{ timeout: 180_000 },
-							)
-							const error = await page.evaluate(
-								() =>
-									(
-										window as unknown as {
-											foundation: { error: string | null }
-										}
-									).foundation.error,
-							)
-							if (error) throw new Error(error)
-							await page.waitForTimeout(warmup)
-							await page.evaluate(() => {
-								;(
-									window as unknown as { foundation: { frames: number[] } }
-								).foundation.frames = []
-							})
-							await page.waitForTimeout(windowMs)
-							const measurements = await page.evaluate(() => {
-								const state = (
-									window as unknown as { foundation: Record<string, unknown> }
-								).foundation
-								const gl = document
-									.querySelector('canvas')
-									?.getContext('webgl2')
-								const ext = gl?.getExtension('WEBGL_debug_renderer_info')
-								return {
-									...state,
-									renderer:
-										gl && ext
-											? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)
-											: null,
-									vendor:
-										gl && ext
-											? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL)
-											: null,
-									heap:
-										(
-											performance as Performance & {
-												memory?: { usedJSHeapSize: number }
+								continue
+							const page = await context.newPage()
+							try {
+								await page.goto(
+									`${base}/foundation.html?model=${model}&baseline=${Number(baseline)}&instances=${instances}&edges=${Number(edges)}&motion=${Number(motion)}&effect=${effect}`,
+									{ waitUntil: 'domcontentloaded' },
+								)
+								await page.waitForFunction(
+									() => {
+										const state = (
+											window as unknown as {
+												foundation: { ready: boolean; error: string | null }
 											}
-										).memory?.usedJSHeapSize ?? null,
-								}
-							})
-							results.push({ ...config, ...measurements })
-						} catch (error) {
-							results.push({
-								...config,
-								error: error instanceof Error ? error.message : String(error),
-							})
+										).foundation
+										return state?.ready || state?.error
+									},
+									undefined,
+									{ timeout: 180_000 },
+								)
+								const error = await page.evaluate(
+									() =>
+										(
+											window as unknown as {
+												foundation: { error: string | null }
+											}
+										).foundation.error,
+								)
+								if (error) throw new Error(error)
+								await page.waitForTimeout(warmup)
+								await page.evaluate(() => {
+									;(
+										window as unknown as { foundation: { frames: number[] } }
+									).foundation.frames = []
+									;(
+										window as unknown as {
+											foundation: { effectUpdateMs: number[] }
+										}
+									).foundation.effectUpdateMs = []
+								})
+								await page.waitForTimeout(windowMs)
+								const measurements = await page.evaluate(() => {
+									const state = (
+										window as unknown as { foundation: Record<string, unknown> }
+									).foundation
+									const gl = document
+										.querySelector('canvas')
+										?.getContext('webgl2')
+									const ext = gl?.getExtension('WEBGL_debug_renderer_info')
+									return {
+										...state,
+										renderer:
+											gl && ext
+												? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)
+												: null,
+										vendor:
+											gl && ext
+												? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL)
+												: null,
+										heap:
+											(
+												performance as Performance & {
+													memory?: { usedJSHeapSize: number }
+												}
+											).memory?.usedJSHeapSize ?? null,
+									}
+								})
+								results.push({ ...config, ...measurements })
+							} catch (error) {
+								results.push({
+									...config,
+									error: error instanceof Error ? error.message : String(error),
+								})
+							}
+							await page.close()
+							await save()
+							console.log(
+								JSON.stringify({
+									...config,
+									completed: results.length,
+									total:
+										models.length *
+										(single ? 1 : effectRuns ? 2 : 8) *
+										runs *
+										effects.length,
+								}),
+							)
 						}
-						await page.close()
-						await save()
-						console.log(
-							JSON.stringify({
-								...config,
-								completed: results.length,
-								total: models.length * (single ? 1 : 8) * runs,
-							}),
-						)
 					}
 } finally {
 	await context.close()

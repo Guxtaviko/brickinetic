@@ -2,6 +2,7 @@ import { Box3, Matrix4, type Object3D, Vector3 } from 'three'
 import { type PreparedModel, preparedCenter } from './construction-units.js'
 
 export const LDrawOrientation = new Matrix4().makeRotationX(Math.PI)
+const edgeBaseline = new WeakMap<Object3D, boolean>()
 
 export function getCenterOffset(
 	model: Object3D,
@@ -21,6 +22,9 @@ export function setEdgeVisibility(model: Object3D, visible: boolean) {
 			isLineSegments?: boolean
 			isConditionalLine?: boolean
 		}
-		if (edge.isLineSegments || edge.isConditionalLine) edge.visible = visible
+		if (edge.isLineSegments || edge.isConditionalLine) {
+			if (!edgeBaseline.has(edge)) edgeBaseline.set(edge, edge.visible)
+			edge.visible = visible && (edgeBaseline.get(edge) ?? true)
+		}
 	})
 }

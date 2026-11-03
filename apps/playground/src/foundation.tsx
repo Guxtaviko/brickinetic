@@ -2,6 +2,11 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { createRoot } from 'react-dom/client'
 import { Box3, Group, Vector3 } from 'three'
 import {
+	applyBrickEffect,
+	captureBrickEffectVisibility,
+	restoreBrickEffects,
+} from '../../../packages/brickinetic/dist/brick-effects.js'
+import {
 	bindConstructionUnits,
 	displaceConstructionUnit,
 	prepareConstructionUnits,
@@ -11,6 +16,7 @@ import {
 	cloneModel,
 	DEFAULT_PARTS_LIBRARY_PATH,
 	disposeModel,
+	getConstructionBindings,
 	loadUnpreparedModel,
 	readModel,
 	retainModel,
@@ -31,6 +37,7 @@ const frameLoop =
 const motion =
 	params.get('motion') === '1' &&
 	!matchMedia('(prefers-reduced-motion: reduce)').matches
+const effect = params.get('effect') ?? 'none'
 const state: {
 	ready: boolean
 	error: string | null
@@ -42,11 +49,14 @@ const state: {
 	units: number | null
 	renderables: number
 	frames: number[]
+	effectUpdateMs: number[]
+	effectSetupMs: number | null
 	calls: number
 	geometries: number
 	textures: number
 	reduced: boolean
 	probe?: (distance: number) => unknown
+	effectProbe?: (progress: number) => unknown
 	center?: (enabled: boolean) => number[]
 	pose?: () => { float: number[]; spin: number; frameCount: number }
 	cycle?: () => Promise<unknown>
@@ -64,6 +74,8 @@ const state: {
 	units: null,
 	renderables: 0,
 	frames: [],
+	effectUpdateMs: [],
+	effectSetupMs: null,
 	calls: 0,
 	geometries: 0,
 	textures: 0,
@@ -98,6 +110,22 @@ async function main() {
 		setEdgeVisibility(clone, edges)
 		return { clone, binding }
 	})
+	if (effect !== 'none') {
+		if (!prepared)
+			throw new Error('Effects require prepared construction units')
+		const started = performance.now()
+		for (const { binding } of clones)
+			if (binding)
+				applyBrickEffect(
+					binding,
+					prepared,
+					0.5,
+					{ progress: 0.5 },
+					false,
+					effect === 'assembly' ? 'assembly' : 'explosion',
+				)
+		state.effectSetupMs = performance.now() - started
+	}
 	const bounds = new Box3().setFromObject(model)
 	const center = prepared
 		? preparedCenter(prepared)
@@ -130,12 +158,22 @@ async function main() {
 				clone = cloneModel(src)
 			}
 			const release = retainModel(src)
+			const construction = getConstructionBindings(clone)
+			if (params.get('cycleEffect') === '1') {
+				if (!construction) throw new Error('Missing construction binding')
+				captureBrickEffectVisibility(clone)
+				applyBrickEffect(construction.units, construction.prepared, 0.5, {
+					progress: 0.5,
+				})
+			}
 			const warmStart = performance.now()
 			readModel(src)
 			const warmReadMs = performance.now() - warmStart
 			scene.add(clone)
 			gl.render(scene, camera)
 			const mounted = memory()
+			if (construction && params.get('cycleEffect') === '1')
+				restoreBrickEffects(construction.units)
 			scene.remove(clone)
 			release()
 			await new Promise((resolve) => setTimeout(resolve, 2200))
@@ -149,6 +187,20 @@ async function main() {
 			state.calls = gl.info.render.calls
 			state.geometries = gl.info.memory.geometries
 			state.textures = gl.info.memory.textures
+			if (effect !== 'none' && prepared) {
+				const started = performance.now()
+				for (const { binding } of clones)
+					if (binding)
+						applyBrickEffect(
+							binding,
+							prepared,
+							0.5 + Math.sin(clock.elapsedTime) * 0.25,
+							{ progress: 0 },
+							false,
+							effect === 'assembly' ? 'assembly' : 'explosion',
+						)
+				state.effectUpdateMs.push(performance.now() - started)
+			}
 			if (motion) {
 				spin.rotation.y = clock.elapsedTime * 0.2
 				float.position.y = Math.sin(clock.elapsedTime) * size * 0.02
@@ -214,6 +266,33 @@ async function main() {
 			rendered,
 			other: clones[1]?.clone.children[0]?.matrix.elements.slice() ?? null,
 		}
+	}
+	state.effectProbe = (progress) => {
+		const first = clones[0].binding
+		const second = clones[1].binding
+		if (!prepared || !first?.length || !second?.length)
+			throw new Error('Two prepared instances are required')
+		const before = first.map((binding) => binding.roots[0].matrix.toArray())
+		const other = second.map((binding) => binding.roots[0].matrix.toArray())
+		applyBrickEffect(first, prepared, progress, { progress, distance: 30 })
+		const changed = first.some((binding, index) =>
+			binding.roots[0].matrix.elements.some(
+				(value, i) => Math.abs(value - before[index][i]) > 1e-6,
+			),
+		)
+		const independent = second.every((binding, index) =>
+			binding.roots[0].matrix.elements.every(
+				(value, i) => Math.abs(value - other[index][i]) < 1e-6,
+			),
+		)
+		restoreBrickEffects(first)
+		const restored = first.every((binding, index) =>
+			binding.roots[0].matrix.elements.every(
+				(value, i) => Math.abs(value - before[index][i]) < 1e-6,
+			),
+		)
+		state.invalidate?.()
+		return { changed, independent, restored }
 	}
 	state.center = (enabled) => {
 		orientedGroups.forEach((group, index) => {

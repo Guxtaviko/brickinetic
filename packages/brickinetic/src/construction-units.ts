@@ -134,6 +134,7 @@ export interface BoundsSnapshot {
 }
 
 export interface PreparedModel {
+	readonly source: string
 	readonly units: readonly UnitSnapshot[]
 	readonly bounds: BoundsSnapshot | null
 	readonly center: readonly number[] | null
@@ -301,6 +302,7 @@ export function prepareConstructionUnits(
 	})
 	const bounds = boundsOf([model])
 	return Object.freeze({
+		source,
 		units: Object.freeze(units),
 		bounds,
 		center: centerOf(bounds),

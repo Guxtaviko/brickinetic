@@ -5,6 +5,9 @@ interface Measurement {
 	baseline: boolean
 	instances: number
 	edges: boolean
+	effect?: string
+	effectSetupMs?: number | null
+	effectUpdateMs?: number[]
 	loaderMs?: number
 	loaderStages?: {
 		transportMs?: number
@@ -35,6 +38,7 @@ for (const row of report.results) {
 		row.baseline,
 		row.instances,
 		row.edges,
+		row.effect ?? 'none',
 	])
 	const group = groups.get(key) ?? []
 	group.push(row)
@@ -62,6 +66,10 @@ for (const [key, rows] of groups) {
 			preparationMs: distribution(values((row) => row.preparationMs)),
 			bindingMs: distribution(good.flatMap((row) => row.bindingMs ?? [])),
 			cloneMs: distribution(good.flatMap((row) => row.cloneMs ?? [])),
+			effectSetupMs: distribution(values((row) => row.effectSetupMs)),
+			effectUpdateMs: distribution(
+				good.flatMap((row) => row.effectUpdateMs ?? []),
+			),
 			frameMs: distribution(frames),
 			frames: frames.length,
 			calls: distribution(values((row) => row.calls)),

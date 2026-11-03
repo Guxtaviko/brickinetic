@@ -70,6 +70,8 @@
 			.filter({ hasText: 'Model ready' })
 			.waitFor()
 	await ready()
+	const xyzPreview = page.getByLabel('XYZ preview', { exact: true })
+	check(await xyzPreview.isChecked(), 'XYZ preview is enabled by default')
 	await page.evaluate(async () => {
 		const url = performance
 			.getEntriesByType('resource')
@@ -84,6 +86,24 @@
 		window.__getState = () => root.store.getState()
 		window.__unmount = () => fiber.unmountComponentAtNode(canvas)
 	})
+	const xyzPreviewIsInScene = () =>
+		page.evaluate(() =>
+			Boolean(window.__getState().scene.getObjectByName('xyz-preview')),
+		)
+	check(
+		await xyzPreviewIsInScene(),
+		'XYZ axes are rendered in the scene by default',
+	)
+	check(
+		(await page.locator('.axis-key').count()) === 1,
+		'XYZ axis labels are displayed by default',
+	)
+	await xyzPreview.uncheck()
+	check(
+		!(await xyzPreviewIsInScene()) &&
+			(await page.locator('.axis-key').count()) === 0,
+		'unchecking XYZ preview hides the scene axes and labels',
+	)
 	const pose = (name = 'inspection-primary') =>
 		page.evaluate((name) => {
 			const state = window.__getState()
@@ -304,6 +324,12 @@
 	check(
 		(await page.getByLabel('Float axis', { exact: true }).inputValue()) === 'x',
 		'model selection preserves motion settings',
+	)
+	check(
+		!(await xyzPreview.isChecked()) &&
+			!(await xyzPreviewIsInScene()) &&
+			(await page.locator('.axis-key').count()) === 0,
+		'model selection preserves the hidden XYZ preview setting',
 	)
 	await page.getByLabel('Spin', { exact: true }).check()
 	await page.waitForTimeout(100)

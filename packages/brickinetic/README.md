@@ -38,6 +38,44 @@ const Sample = () => (
 | `center`           | `boolean`          | `false`        | Moves the oriented bounds center to the local origin before consumer transforms. |
 | `edges`            | `boolean`          | `true`         | Shows or hides ordinary and conditional LDraw edges for this instance.           |
 | `motion`           | `MotionConfig`     | omitted        | Configures optional whole-model float and spin presets.                          |
+| `explosion`        | `ExplosionConfig`  | omitted        | Seeks construction units radially from their assembled bounds center.            |
+| `assembly`         | `AssemblyConfig`   | omitted        | Reveals units in stable visual order with optional translated entrances.         |
+
+### Controlled construction effects
+
+Use exactly one effect prop and provide exactly one progress source. Numeric
+progress is finite and clamped to `[0, 1]`; NaN and infinities throw. Both
+effects are deterministic under forward and reverse seeking and do not create
+a playback clock.
+
+```tsx
+import { BrickModel, createBrickEffectController } from 'brickinetic'
+
+const controller = createBrickEffectController()
+controller.setProgress(0.5) // May be set before the model mounts.
+<BrickModel src='/models/ship.mpd' center explosion={{ controller, distance: 24 }} />
+// Or: <BrickModel src='/models/ship.mpd' assembly={{ progress: 0.6,
+//   entrance: 'translate', offset: [0, 30, 0], easing: 'smoothstep' }} />
+```
+
+Explosion distance and origin, plus assembly offsets, use oriented model-local
+LDraw units before centering. Explosion defaults to the assembled bounds center
+and distance 20; an origin-coincident unit stays still. Assembly divides units
+into equal progress stages, ordered by bounds center on Y, then numeric
+occurrence path. Axis and direction can be set with `axis` and `direction`.
+This is visual ordering, not authored construction order. For N units, unit i
+has local progress `clamp(N * progress - i, 0, 1)` and becomes visible only
+above zero; exact stage boundaries leave the next unit hidden. Assembly defaults
+to instant reveal; translation defaults to zero offset and linear easing, with
+`smoothstep` also available. Reduced motion follows `motion.reducedMotion`
+(default `system`) and makes assembly reveal the requested stages at baseline;
+preference changes apply while mounted. `always` reduces the entrance and
+`never` allows it. An unavailable preference API means no reduction. Explicit
+explosion remains at the requested pose regardless of preference. A controller
+defaults to progress zero, retains progress across unmount, allows one active
+binding, and throws if mounted on two effects at once. Manual render loops
+still require the consumer to advance the Canvas; demand loops are invalidated
+when a controller changes the pose.
 
 ### Motion
 
@@ -67,6 +105,10 @@ Motion uses elapsed frame time. Continuous and demand Canvas loops render it whi
 Pending model and color configuration requests suspend to the nearest React `Suspense` boundary. A network or HTTP error, HTML response, empty document, unresolved external geometry reference, MPD with no renderable geometry, an unsupported renderable, or a transform that is singular, nonfinite, or has a nonfinite inverse during preparation throws an error containing the source URL. Preparation errors also identify the affected occurrence. Place a React error boundary above the Canvas to show an error state. To retry, correct the source or dependency, reset that boundary and remount the component; failed source entries are evicted. Consumers own the Canvas, fallback UI, and retry controls.
 
 Embedded definitions take precedence. External parts and their nested dependencies are fetched through Three.js’s LDraw resolver from the configured library. If a required part cannot be resolved, the entire model fails to load; no successful partial model is returned. Embed a missing custom part or configure a library containing it. Syntax diagnostics are limited to those reported by the upstream Three.js loader. Importing the package is safe in Node without `window`, `document`, or a WebGL context; this does not promise server rendering of a Canvas or model.
+
+Effects also require finite construction-unit bounds. Unsupported renderable
+structures, units without bounds, and singular transforms fail with source and
+occurrence context so the source can be corrected and the error boundary reset.
 
 
 ### Parts hosting and custom libraries

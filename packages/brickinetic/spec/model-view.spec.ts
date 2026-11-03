@@ -39,7 +39,10 @@ test('toggles ordinary and conditional edge visibility on the supplied instance 
 	Object.assign(ordinary, { isLineSegments: true })
 	const conditional = new Group()
 	Object.assign(conditional, { isConditionalLine: true })
-	model.add(ordinary, conditional)
+	const hidden = new Group()
+	Object.assign(hidden, { isLineSegments: true })
+	hidden.visible = false
+	model.add(ordinary, conditional, hidden)
 
 	setEdgeVisibility(model, false)
 	assert.equal(ordinary.visible, false)
@@ -47,4 +50,5 @@ test('toggles ordinary and conditional edge visibility on the supplied instance 
 	setEdgeVisibility(model, true)
 	assert.equal(ordinary.visible, true)
 	assert.equal(conditional.visible, true)
+	assert.equal(hidden.visible, false)
 })
