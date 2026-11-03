@@ -11,7 +11,11 @@ import {
 	useState,
 } from 'react'
 import type { Group } from 'three'
-import { cloneModel, retainModel } from './model-resource.js'
+import {
+	cloneModel,
+	getConstructionBindings,
+	retainModel,
+} from './model-resource.js'
 import { getCenterOffset, setEdgeVisibility } from './model-view.js'
 import {
 	advanceMotion,
@@ -130,7 +134,8 @@ export function BrickModel({
 		[src, partsLibraryPath],
 	)
 	const centerOffset = useMemo(
-		() => getCenterOffset(model, center),
+		() =>
+			getCenterOffset(model, center, getConstructionBindings(model)?.prepared),
 		[model, center],
 	)
 	const floatRef = useRef<Group>(null)

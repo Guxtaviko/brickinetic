@@ -1,0 +1,8 @@
+0 Standalone construction fixture
+0 Name: construction-standalone.ldr
+0 Author: Brickinetic contributors
+0 !LICENSE CC0-1.0
+0 !LDRAW_ORG Part
+3 16 0 0 0 10 0 0 0 10 0
+2 24 0 0 0 10 0 0
+5 24 0 0 0 10 0 0 0 10 0 0 -10 0

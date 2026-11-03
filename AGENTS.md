@@ -59,6 +59,9 @@ and animating LDraw models with React Three Fiber.
 - Document technical limitations explicitly.
 - Keep frame updates outside React state and clean up animation and preference subscriptions.
 - Document changes to public types, default hosted resources, error and retry behavior, and relevant network or CORS requirements.
+- Continue implementation through the authorized task list until its requirements are complete. Do not end a turn merely because a task is large, time-consuming, or has an ordinary implementation error; investigate, fix, and re-verify errors with available tools.
+- Pause only when a blocker requires human intervention to make further progress, such as a missing product decision that cannot be inferred, unavailable credentials or external access, or an approval/permission that only the user can grant. A failing test, build, typecheck, formatter, or validation command is not by itself such a blocker; attempt a reasonable repair first.
+- When a human-intervention blocker is found, state it plainly and precisely: what is blocked, the evidence and affected task, why available fixes or workarounds cannot resolve it, and exactly what intervention is needed. Report progress and command outcomes transparently; never imply that work is continuing after ending the turn.
 
 ## Definition of Done
 

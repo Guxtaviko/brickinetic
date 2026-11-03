@@ -1,0 +1,38 @@
+0 FILE root.ldr
+0 Construction ownership fixture
+0 Name: root.ldr
+0 Author: Brickinetic contributors
+0 !LICENSE CC0-1.0
+0 !LDRAW_ORG Model
+3 16 0 0 0 10 0 0 0 10 0
+2 24 0 0 0 10 0 0
+5 24 0 0 0 10 0 0 0 10 0 0 -10 0
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 part.dat
+1 16 20 0 0 1 0 0 0 1 0 0 0 1 part.dat
+1 16 40 0 0 1 0 0 0 1 0 0 0 1 submodel.ldr
+1 16 60 0 0 1 0 0 0 1 0 0 0 1 shortcut.dat
+1 16 80 0 0 1 0 0 0 1 0 0 0 1 unknown.ldr
+0 FILE part.dat
+0 Fixture part
+0 !LDRAW_ORG Part
+3 16 0 0 0 8 0 0 0 8 0
+2 24 0 0 0 8 0 0
+5 24 0 0 0 8 0 0 0 8 0 0 -8 0
+1 16 0 0 2 1 0 0 0 1 0 0 0 1 nested.dat
+0 FILE nested.dat
+0 Nested fixture part
+0 !LDRAW_ORG Part
+3 16 0 0 0 4 0 0 0 4 0
+0 FILE submodel.ldr
+0 Fixture submodel
+0 !LDRAW_ORG Model
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 part.dat
+0 FILE shortcut.dat
+0 Fixture shortcut
+0 !LDRAW_ORG Shortcut
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 part.dat
+0 FILE unknown.ldr
+0 Fixture unclassified container
+0 !LDRAW_ORG CustomContainer
+3 16 0 0 0 3 0 0 0 3 0
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 part.dat

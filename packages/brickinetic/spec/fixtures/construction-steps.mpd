@@ -1,0 +1,27 @@
+0 FILE root.ldr
+0 Step observation fixture
+0 Author: Brickinetic contributors
+0 !LICENSE CC0-1.0
+0 !LDRAW_ORG Model
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 part.dat
+0 STEP
+0 STEP
+1 16 10 0 0 1 0 0 0 1 0 0 0 1 sub.ldr
+0 STEP
+1 16 20 0 0 1 0 0 0 1 0 0 0 1 part.dat
+0 FILE sub.ldr
+0 Nested step model
+0 !LDRAW_ORG Model
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 part.dat
+0 STEP
+1 16 10 0 0 1 0 0 0 1 0 0 0 1 outer.dat
+0 FILE outer.dat
+0 Outer part
+0 !LDRAW_ORG Part
+3 16 0 0 0 5 0 0 0 5 0
+0 STEP
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 part.dat
+0 FILE part.dat
+0 Step part
+0 !LDRAW_ORG Part
+3 16 0 0 0 2 0 0 0 2 0

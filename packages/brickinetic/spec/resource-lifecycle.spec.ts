@@ -12,10 +12,15 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { BufferGeometry, Texture } from 'three'
 
-const { cloneModel, readModel, retainModel, RESOURCE_EVICTION_DELAY_MS } =
-	(await import(
-		new URL('../../dist/model-resource.js', import.meta.url).href
-	)) as typeof import('../dist/model-resource.js')
+const {
+	cloneModel,
+	getConstructionBindings,
+	readModel,
+	retainModel,
+	RESOURCE_EVICTION_DELAY_MS,
+} = (await import(
+	new URL('../../dist/model-resource.js', import.meta.url).href
+)) as typeof import('../dist/model-resource.js')
 const { setEdgeVisibility } = (await import(
 	new URL('../../dist/model-view.js', import.meta.url).href
 )) as typeof import('../dist/model-view.js')
@@ -122,6 +127,11 @@ test('keeps shared resources through StrictMode replay and concurrent consumers'
 			const model = await loadAndRead(src)
 			const strictInstance = cloneModel(src)
 			const remainingInstance = cloneModel(src)
+			const strictBinding = getConstructionBindings(strictInstance)
+			const remainingBinding = getConstructionBindings(remainingInstance)
+			assert.ok(strictBinding && remainingBinding)
+			assert.equal(strictBinding.prepared, remainingBinding.prepared)
+			const snapshot = JSON.stringify(remainingBinding.prepared)
 			setEdgeVisibility(strictInstance, false)
 			setEdgeVisibility(remainingInstance, true)
 			const texture = new Texture()
@@ -151,6 +161,7 @@ test('keeps shared resources through StrictMode replay and concurrent consumers'
 			strictReplay()
 			t.mock.timers.tick(RESOURCE_EVICTION_DELAY_MS * 2)
 			disposals.assertNotDisposed()
+			assert.equal(JSON.stringify(remainingBinding.prepared), snapshot)
 			remainingInstance.traverse((object) => {
 				if (
 					(object as Renderable).isLineSegments ||
@@ -162,6 +173,14 @@ test('keeps shared resources through StrictMode replay and concurrent consumers'
 			concurrentConsumer()
 			t.mock.timers.tick(RESOURCE_EVICTION_DELAY_MS)
 			disposals.assertDisposedOnce()
+			const pending = render(src).thrown
+			assert.ok(pending instanceof Promise)
+			await pending
+			const replacement = cloneModel(src)
+			assert.notEqual(
+				getConstructionBindings(replacement)?.prepared,
+				remainingBinding.prepared,
+			)
 		},
 	)
 })
@@ -254,6 +273,10 @@ test('keeps out-of-order source completions isolated by src', async () => {
 
 			assert.notEqual(modelA, modelB)
 			assert.equal(readModel(srcB), modelB)
+			assert.notEqual(
+				getConstructionBindings(cloneModel(srcA))?.prepared,
+				getConstructionBindings(cloneModel(srcB))?.prepared,
+			)
 		},
 	)
 })
@@ -289,11 +312,21 @@ test('releases an abandoned render and a load whose consumer unmounted while pen
 		async () => {
 			const src = 'https://lifecycle.test/abandoned-render.mpd'
 			const model = await loadAndRead(src)
+			const abandoned = cloneModel(src)
+			const prepared = getConstructionBindings(abandoned)?.prepared
+			assert.ok(prepared)
 			const disposals = trackDisposals(model)
 			// No retainModel call represents a render that Suspense abandoned before commit.
 			t.mock.timers.tick(RESOURCE_EVICTION_DELAY_MS)
 			t.mock.timers.tick(RESOURCE_EVICTION_DELAY_MS)
 			disposals.assertDisposedOnce()
+			const pending = render(src).thrown
+			assert.ok(pending instanceof Promise)
+			await pending
+			assert.notEqual(
+				getConstructionBindings(cloneModel(src))?.prepared,
+				prepared,
+			)
 		},
 	)
 

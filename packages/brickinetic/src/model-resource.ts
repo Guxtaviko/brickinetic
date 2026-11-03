@@ -8,6 +8,11 @@ import {
 } from 'three'
 import { LDrawLoader } from 'three/addons/loaders/LDrawLoader.js'
 import { LDrawConditionalLineMaterial } from 'three/addons/materials/LDrawConditionalLineMaterial.js'
+import {
+	bindConstructionUnits,
+	type PreparedModel,
+	prepareConstructionUnits,
+} from './construction-units.js'
 
 type PendingEntry = {
 	status: 'pending'
@@ -17,6 +22,7 @@ type PendingEntry = {
 type ReadyEntry = {
 	status: 'ready'
 	model: Group
+	prepared: PreparedModel
 	consumers: number
 	renderLeases: RenderLease[]
 	evictionTimer: ReturnType<typeof setTimeout> | undefined
@@ -35,6 +41,10 @@ type RenderLease = {
 }
 
 const resources = new Map<string, ResourceEntry>()
+const bindings = new WeakMap<
+	Group,
+	{ prepared: PreparedModel; units: ReturnType<typeof bindConstructionUnits> }
+>()
 const colorConfigUrl = new URL('./assets/LDConfig.ldr', import.meta.url).href
 export const DEFAULT_PARTS_LIBRARY_PATH =
 	'https://raw.githubusercontent.com/kulits/ldraw-parts/f3d0c2256398c28fbb682f4bb08c59eed81fd4f1/ldraw/'
@@ -161,7 +171,7 @@ function addRenderLease(src: string, entry: ReadyEntry) {
 	entry.renderLeases.push(lease)
 }
 
-function disposeModel(model: Group) {
+export function disposeModel(model: Group) {
 	const geometries = new Set<BufferGeometry>()
 	const materials = new Set<Material>()
 	const textures = new Set<Texture>()
@@ -211,10 +221,18 @@ function disposeModel(model: Group) {
 	for (const texture of textures) texture.dispose()
 }
 
-async function loadModel(
+export interface LoaderTimings {
+	transportMs?: number
+	materialsMs?: number
+	parseMs?: number
+}
+
+export async function loadUnpreparedModel(
 	src: string,
 	partsLibraryPath: string,
+	timings?: LoaderTimings,
 ): Promise<Group> {
+	const transportStarted = performance.now()
 	let response: Response
 	try {
 		response = await fetch(src)
@@ -238,6 +256,7 @@ async function loadModel(
 			`Cannot read LDraw model "${src}": ${asError(error).message}`,
 		)
 	}
+	if (timings) timings.transportMs = performance.now() - transportStarted
 
 	if (
 		/text\/html/i.test(contentType) ||
@@ -255,6 +274,7 @@ async function loadModel(
 	const dependencyFailures = observeDependencies(loader)
 	loader.setConditionalLineMaterial(LDrawConditionalLineMaterial)
 	loader.addDefaultMaterials()
+	const materialsStarted = performance.now()
 	try {
 		await loader.preloadMaterials(colorConfigUrl)
 	} catch (error) {
@@ -262,8 +282,10 @@ async function loadModel(
 			`Cannot load the bundled LDraw color configuration for "${src}": ${asError(error).message}`,
 		)
 	}
+	if (timings) timings.materialsMs = performance.now() - materialsStarted
 
 	let model: Group
+	const parseStarted = performance.now()
 	try {
 		model = await new Promise<Group>((resolve, reject) => {
 			loader.parse(text, resolve, reject)
@@ -279,6 +301,7 @@ async function loadModel(
 			)
 		throw new Error(`Cannot parse LDraw model "${src}": ${message}`)
 	}
+	if (timings) timings.parseMs = performance.now() - parseStarted
 
 	const failure = dependencyFailures.entries().next().value
 	if (failure) {
@@ -297,8 +320,20 @@ async function loadModel(
 		throw new Error(
 			`Cannot load LDraw model "${src}": the MPD contains no renderable geometry`,
 		)
-
 	return model
+}
+
+async function loadModel(
+	src: string,
+	partsLibraryPath: string,
+): Promise<{ model: Group; prepared: PreparedModel }> {
+	const model = await loadUnpreparedModel(src, partsLibraryPath)
+	try {
+		return { model, prepared: prepareConstructionUnits(model, src) }
+	} catch (error) {
+		disposeModel(model)
+		throw error
+	}
 }
 
 function getResource(src: string, path?: string): ResourceEntry {
@@ -308,10 +343,11 @@ function getResource(src: string, path?: string): ResourceEntry {
 
 	const entry: PendingEntry = { status: 'pending', promise: Promise.resolve() }
 	entry.promise = loadModel(src, normalizePartsLibraryPath(path, src)).then(
-		(model) => {
+		({ model, prepared }) => {
 			const ready: ReadyEntry = {
 				status: 'ready',
 				model,
+				prepared,
 				consumers: 0,
 				renderLeases: [],
 				evictionTimer: undefined,
@@ -350,7 +386,19 @@ export function readModel(src: string, partsLibraryPath?: string): Group {
 }
 
 export function cloneModel(src: string, partsLibraryPath?: string): Group {
-	return readModel(src, partsLibraryPath).clone(true) as Group
+	const model = readModel(src, partsLibraryPath).clone(true) as Group
+	const entry = resources.get(resourceKey(src, partsLibraryPath))
+	if (entry?.status !== 'ready')
+		throw new Error(`Cannot bind LDraw model "${src}"`)
+	bindings.set(model, {
+		prepared: entry.prepared,
+		units: bindConstructionUnits(model, entry.prepared),
+	})
+	return model
+}
+
+export function getConstructionBindings(model: Group) {
+	return bindings.get(model)
 }
 
 export function retainModel(

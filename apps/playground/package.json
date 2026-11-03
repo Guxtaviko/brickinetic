@@ -12,7 +12,11 @@
 		"check": "biome check .",
 		"preview": "vite preview",
 		"build:scripts": "tsc -p tsconfig.scripts.json && tsc -p tsconfig.browser-scripts.json && node .compiled/scripts/prepare-browser-scripts.js",
-		"verify:offline": "node .compiled/scripts/verify-offline-fixture.js"
+		"verify:offline": "node .compiled/scripts/verify-offline-fixture.js",
+		"verify:foundation": "node .compiled/scripts/verify-foundation.js",
+		"measure:foundation": "node .compiled/scripts/measure-foundation.js",
+		"cycle:foundation": "node .compiled/scripts/cycle-foundation.js",
+		"summarize:foundation": "node .compiled/scripts/summarize-foundation.js"
 	},
 	"dependencies": {
 		"@react-three/fiber": "catalog:",

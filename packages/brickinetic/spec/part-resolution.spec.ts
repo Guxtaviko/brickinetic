@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { LDrawLoader } from 'three/addons/loaders/LDrawLoader.js'
+import {
+	prepareConstructionUnits,
+	selectConstructionUnits,
+} from '../src/construction-units.js'
 
 const {
 	readModel,
+	cloneModel,
+	getConstructionBindings,
 	retainModel,
 	normalizePartsLibraryPath,
 	DEFAULT_PARTS_LIBRARY_PATH,
@@ -220,6 +227,177 @@ test('resolves embedded OMR backslash subparts before attempting the library', a
 					.length,
 				0,
 			)
+		},
+	)
+})
+
+test('loads the embedded construction ownership fixture without geometry requests', async () => {
+	const src = 'https://models.test/construction-ownership.mpd'
+	const secondSrc = 'https://models.test/construction-ownership-reload.mpd'
+	const fixture = await readFile(
+		new URL('../../spec/fixtures/construction-ownership.mpd', import.meta.url),
+		'utf8',
+	)
+	await withFetch(
+		(url) =>
+			new Response(url === src || url === secondSrc ? fixture : 'missing', {
+				status: url === src || url === secondSrc ? 200 : 404,
+			}),
+		async (requests) => {
+			const model = await load(src, 'https://fixture.test/ldraw/')
+			assert.ok(model.isGroup)
+			assert.equal(selectConstructionUnits(model).length, 7)
+			const reloaded = await load(secondSrc, 'https://fixture.test/ldraw/')
+			assert.deepEqual(
+				selectConstructionUnits(model).map((unit) => unit.id),
+				selectConstructionUnits(reloaded).map((unit) => unit.id),
+			)
+			assert.deepEqual(
+				requests.filter((url) => !url.endsWith('/LDConfig.ldr')),
+				[src, secondSrc],
+			)
+		},
+	)
+})
+
+test('loads the standalone construction fixture without geometry requests', async () => {
+	const src = 'https://models.test/construction-standalone.ldr'
+	const fixture = await readFile(
+		new URL('../../spec/fixtures/construction-standalone.ldr', import.meta.url),
+		'utf8',
+	)
+	await withFetch(
+		(url) =>
+			new Response(url === src ? fixture : 'missing', {
+				status: url === src ? 200 : 404,
+			}),
+		async (requests) => {
+			const model = await load(src, 'https://fixture.test/ldraw/')
+			assert.equal(model.userData.type, 'Part')
+			assert.equal(model.userData.numBuildingSteps, 1)
+			assert.equal(model.userData.buildingStep, 0)
+			assert.deepEqual(
+				requests.filter((url) => !url.endsWith('/LDConfig.ldr')),
+				[src],
+			)
+		},
+	)
+})
+
+test('disposes failed preparation and permits a repaired retry', async () => {
+	const src = 'https://models.test/preparation-retry.mpd'
+	const parse = LDrawLoader.prototype.parse
+	let broken = true
+	let disposed = 0
+	LDrawLoader.prototype.parse = function (text, onLoad, onError) {
+		return parse.call(
+			this,
+			text,
+			(model) => {
+				if (broken) {
+					model.scale.x = 0
+					model.traverse((node) => {
+						if (
+							'geometry' in node &&
+							node.geometry &&
+							typeof node.geometry === 'object' &&
+							'addEventListener' in node.geometry &&
+							typeof node.geometry.addEventListener === 'function'
+						)
+							node.geometry.addEventListener('dispose', () => disposed++)
+					})
+				}
+				onLoad(model)
+			},
+			onError,
+		)
+	}
+	try {
+		await withFetch(
+			() => new Response(triangle),
+			async () => {
+				await assert.rejects(load(src), /preparation-retry.*singular/)
+				assert.ok(disposed > 0)
+				broken = false
+				await new Promise((resolve) => setTimeout(resolve, 0))
+				assert.ok((await load(src)).isGroup)
+			},
+		)
+	} finally {
+		LDrawLoader.prototype.parse = parse
+	}
+})
+
+test('shares prepared metadata per effective library and binds clones independently', async () => {
+	const src = 'https://models.test/prepared-libraries.ldr'
+	await withFetch(
+		() => new Response(triangle),
+		async () => {
+			await load(src, 'https://one.test/')
+			await load(src, 'https://two.test/')
+			const first = cloneModel(src, 'https://one.test/')
+			const second = cloneModel(src, 'https://one.test/')
+			const other = cloneModel(src, 'https://two.test/')
+			const a = getConstructionBindings(first)
+			const b = getConstructionBindings(second)
+			const c = getConstructionBindings(other)
+			assert.ok(a && b && c)
+			assert.equal(a.prepared, b.prepared)
+			assert.notEqual(a.prepared, c.prepared)
+			assert.notEqual(a.units[0].roots[0], b.units[0].roots[0])
+			const firstMesh = first.children[0] as import('three').Mesh
+			const secondMesh = second.children[0] as import('three').Mesh
+			assert.equal(firstMesh.geometry, secondMesh.geometry)
+			assert.equal(firstMesh.material, secondMesh.material)
+		},
+	)
+})
+
+test('observes explicit, empty and nested loader steps and recursive clone metadata', async () => {
+	const src = 'https://models.test/construction-steps.mpd'
+	const fixture = await readFile(
+		new URL('../../spec/fixtures/construction-steps.mpd', import.meta.url),
+		'utf8',
+	)
+	await withFetch(
+		() => new Response(fixture),
+		async () => {
+			const model = await load(src)
+			const observations = (root: import('three').Object3D) => {
+				const values: unknown[] = []
+				root.traverse((node) => {
+					if ('type' in node.userData)
+						values.push([
+							node.userData.fileName,
+							node.userData.startingBuildingStep ?? null,
+							node.userData.buildingStep ?? null,
+						])
+				})
+				return values
+			}
+			assert.deepEqual(observations(model), [
+				['', null, 0],
+				['part.dat', false, 0],
+				['sub.ldr', true, 1],
+				['part.dat', false, 1],
+				['outer.dat', true, 2],
+				['part.dat', true, 3],
+				['part.dat', true, 4],
+			])
+			assert.equal(model.userData.numBuildingSteps, 5)
+			const prepared = prepareConstructionUnits(model, src)
+			assert.equal(prepared.numBuildingSteps, 5)
+			assert.deepEqual(
+				prepared.observations.map((item) => [
+					item.sourceName,
+					item.startingStep,
+					item.step,
+				]),
+				observations(model),
+			)
+			const units = selectConstructionUnits(model)
+			assert.equal(units.filter((unit) => unit.kind === 'part').length, 4)
+			assert.deepEqual(observations(model.clone(true)), observations(model))
 		},
 	)
 })
