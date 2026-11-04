@@ -47,7 +47,6 @@ const models = [
 ] as const
 
 type Axis = 'x' | 'y' | 'z'
-type Loop = 'always' | 'demand' | 'never'
 
 class ModelErrorBoundary extends Component<
 	{
@@ -89,12 +88,6 @@ function Loading({ onPending }: { onPending: () => void }) {
 	return null
 }
 
-function SimulatedLoadingFailure(): never {
-	throw new Error(
-		'Simulated loading failure. Turn off the test to load this model.',
-	)
-}
-
 function ModelScene({
 	src,
 	center,
@@ -125,7 +118,7 @@ function ModelScene({
 	onReady: () => void
 }) {
 	const primary = useRef<Group>(null)
-	const { camera, gl, invalidate, frameloop, size } = useThree()
+	const { camera, gl, invalidate, size } = useThree()
 	const controlsRef = useRef<OrbitControls | null>(null)
 	const [guideSize, setGuideSize] = useState(30)
 	const effectPhase = useRef(0)
@@ -146,10 +139,6 @@ function ModelScene({
 			controlsRef.current = null
 		}
 	}, [camera, gl, invalidate])
-	useEffect(() => {
-		if (controlsRef.current)
-			controlsRef.current.enableDamping = frameloop === 'always'
-	}, [frameloop])
 	useFrame(() => controlsRef.current?.update())
 	useLayoutEffect(() => {
 		const controls = controlsRef.current
@@ -369,15 +358,12 @@ export default function App() {
 	const [spinAxis, setSpinAxis] = useState<Axis>('y')
 	const [amplitude, setAmplitude] = useState(5)
 	const [floatSpeed, setFloatSpeed] = useState(0.8)
-	const [spinSpeed, setSpinSpeed] = useState(0.2)
+	const [spinSpeed, setSpinSpeed] = useState(0.1)
 	const [reducedMotion, setReducedMotion] =
 		useState<MotionConfig['reducedMotion']>('system')
-	const [frameloop, setFrameloop] = useState<Loop>('always')
 	const [positionX, setPositionX] = useState(0)
 	const [rotationY, setRotationY] = useState(0)
 	const [scale, setScale] = useState(1)
-	const [simulateFailure, setSimulateFailure] = useState(false)
-	const step = useRef<(() => void) | null>(null)
 	const motion = useMemo<MotionConfig>(
 		() => ({
 			float: {
@@ -411,7 +397,6 @@ export default function App() {
 	}, [])
 	const retry = () => {
 		pending()
-		setSimulateFailure(false)
 		setAttempt((value) => value + 1)
 	}
 
@@ -458,43 +443,32 @@ export default function App() {
 					</div>
 					<div className='relative min-h-0 flex-1 overflow-hidden border border-slate-300 bg-slate-200'>
 						<ModelErrorBoundary
-							key={`${model.id}-${attempt}-${simulateFailure}`}
+							key={`${model.id}-${attempt}`}
 							retry={retry}
 							onError={failed}
 						>
-							<Canvas
-								frameloop={frameloop}
-								camera={{ fov: 38, position: [250, 175, 310] }}
-								onCreated={(state) => {
-									step.current = () =>
-										state.advance(state.clock.elapsedTime + 1 / 60, true)
-								}}
-							>
+							<Canvas camera={{ fov: 38, position: [250, 175, 310] }}>
 								<color attach='background' args={['#e2e8f0']} />
 								<ambientLight intensity={1.6} />
 								<directionalLight intensity={2.3} position={[120, 230, 160]} />
 								<Suspense fallback={<Loading onPending={pending} />}>
-									{simulateFailure ? (
-										<SimulatedLoadingFailure />
-									) : (
-										<ModelScene
-											src={src}
-											center={center}
-											edges={edges}
-											xyzPreview={xyzPreview}
-											motion={motion}
-											explosion={explosion}
-											assembly={assembly}
-											effectController={effectController}
-											driveEffect={
-												driveEffect && controllerSource && effect !== 'none'
-											}
-											positionX={positionX}
-											rotationY={rotationY}
-											scale={scale}
-											onReady={ready}
-										/>
-									)}
+									<ModelScene
+										src={src}
+										center={center}
+										edges={edges}
+										xyzPreview={xyzPreview}
+										motion={motion}
+										explosion={explosion}
+										assembly={assembly}
+										effectController={effectController}
+										driveEffect={
+											driveEffect && controllerSource && effect !== 'none'
+										}
+										positionX={positionX}
+										rotationY={rotationY}
+										scale={scale}
+										onReady={ready}
+									/>
 								</Suspense>
 							</Canvas>
 						</ModelErrorBoundary>
@@ -586,72 +560,29 @@ export default function App() {
 							Parts resolve from the LDraw library. A missing part fails the
 							draw; fix its availability and retry.
 						</p>
-						<Toggle
-							label='Simulate loading failure'
-							checked={simulateFailure}
-							onChange={(checked) => {
-								pending()
-								setSimulateFailure(checked)
-							}}
-						/>
-						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
-							Tests the loading-error UI without changing your connection or
-							cached files.
-						</p>
 					</section>
 					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
-						<legend>Motion</legend>
+						<legend>Display & playback</legend>
 						<Toggle
-							label='Float'
-							checked={floatEnabled}
-							onChange={setFloatEnabled}
+							label='Center bounds'
+							checked={center}
+							onChange={setCenter}
 						/>
-						<AxisSelect
-							label='Float axis'
-							value={floatAxis}
-							onChange={setFloatAxis}
-						/>
-						<Slider
-							label='Float amplitude'
-							min={0}
-							max={30}
-							step={0.5}
-							value={amplitude}
-							onChange={setAmplitude}
-							unit=' LU'
-						/>
-						<Slider
-							label='Float speed'
-							min={-2}
-							max={2}
-							step={0.1}
-							value={floatSpeed}
-							onChange={setFloatSpeed}
-							unit=' rad/s'
-						/>
-						<Toggle
-							label='Spin'
-							checked={spinEnabled}
-							onChange={setSpinEnabled}
-						/>
-						<AxisSelect
-							label='Spin axis'
-							value={spinAxis}
-							onChange={setSpinAxis}
-						/>
-						<Slider
-							label='Spin speed'
-							min={-1}
-							max={1}
-							step={0.05}
-							value={spinSpeed}
-							onChange={setSpinSpeed}
-							unit=' rad/s'
-						/>
-						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
-							Axes follow the base transform. Changing an axis restarts that
-							preset.
-						</p>
+						<Toggle label='Edge lines' checked={edges} onChange={setEdges} />
+						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
+							Reduced motion
+							<select
+								aria-label='Reduced motion'
+								value={reducedMotion}
+								onChange={(e) =>
+									setReducedMotion(e.target.value as typeof reducedMotion)
+								}
+							>
+								<option value='system'>Follow system</option>
+								<option value='always'>Always reduce</option>
+								<option value='never'>Allow motion</option>
+							</select>
+						</label>
 					</fieldset>
 					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
 						<legend>Construction effects</legend>
@@ -726,6 +657,61 @@ export default function App() {
 							driver is owned by this playground and stops when disabled.
 						</p>
 					</fieldset>
+
+					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
+						<legend>Motion</legend>
+						<Toggle
+							label='Float'
+							checked={floatEnabled}
+							onChange={setFloatEnabled}
+						/>
+						<AxisSelect
+							label='Float axis'
+							value={floatAxis}
+							onChange={setFloatAxis}
+						/>
+						<Slider
+							label='Float amplitude'
+							min={0}
+							max={30}
+							step={0.5}
+							value={amplitude}
+							onChange={setAmplitude}
+							unit=' LU'
+						/>
+						<Slider
+							label='Float speed'
+							min={-2}
+							max={2}
+							step={0.1}
+							value={floatSpeed}
+							onChange={setFloatSpeed}
+							unit=' rad/s'
+						/>
+						<Toggle
+							label='Spin'
+							checked={spinEnabled}
+							onChange={setSpinEnabled}
+						/>
+						<AxisSelect
+							label='Spin axis'
+							value={spinAxis}
+							onChange={setSpinAxis}
+						/>
+						<Slider
+							label='Spin speed'
+							min={-1}
+							max={1}
+							step={0.05}
+							value={spinSpeed}
+							onChange={setSpinSpeed}
+							unit=' rad/s'
+						/>
+						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
+							Axes follow the base transform. Changing an axis restarts that
+							preset.
+						</p>
+					</fieldset>
 					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
 						<legend>Transform</legend>
 						<Slider
@@ -753,61 +739,6 @@ export default function App() {
 							onChange={setScale}
 							unit='×'
 						/>
-					</fieldset>
-					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
-						<legend>Display & playback</legend>
-						<Toggle
-							label='Center bounds'
-							checked={center}
-							onChange={setCenter}
-						/>
-						<Toggle label='Edge lines' checked={edges} onChange={setEdges} />
-						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
-							Reduced motion
-							<select
-								aria-label='Reduced motion'
-								value={reducedMotion}
-								onChange={(e) =>
-									setReducedMotion(e.target.value as typeof reducedMotion)
-								}
-							>
-								<option value='system'>Follow system</option>
-								<option value='always'>Always reduce</option>
-								<option value='never'>Allow motion</option>
-							</select>
-						</label>
-						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
-							Render loop
-							<select
-								aria-label='Render loop'
-								value={frameloop}
-								onChange={(e) => setFrameloop(e.target.value as Loop)}
-							>
-								<option value='always'>Continuous</option>
-								<option value='demand'>Demand</option>
-								<option value='never'>Manual</option>
-							</select>
-						</label>
-						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
-							Continuous renders every frame, even when static. Demand renders
-							when requested and keeps rendering during motion. Manual renders
-							only when you advance it.
-						</p>
-						{frameloop === 'never' && (
-							<>
-								<button
-									className='mt-3 w-full font-mono text-xs'
-									type='button'
-									onClick={() => step.current?.()}
-								>
-									Advance 1/60 second
-								</button>
-								<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
-									Each click advances time by 1/60 second. Always reduce
-									disables motion under any render-loop mode.
-								</p>
-							</>
-						)}
 					</fieldset>
 				</aside>
 			</div>

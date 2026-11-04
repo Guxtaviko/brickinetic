@@ -103,7 +103,7 @@ function MotionDriver({
 			(config.float.amplitude ?? 0.15) !== 0) ||
 		(!!config.spin &&
 			config.spin.enabled !== false &&
-			(config.spin.speed ?? 0.2) !== 0)
+			(config.spin.speed ?? 0.1) !== 0)
 	const applyPose = useCallback(
 		(delta: number) => {
 			state.current = advanceMotion(state.current, config, delta)

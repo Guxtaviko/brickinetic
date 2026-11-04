@@ -10,9 +10,7 @@
 	const base = new URL(page.url()).origin
 	const fixture =
 		'0 FILE test.ldr\n0 Test\n4 4 10 20 30 20 20 30 20 30 30 10 30 30\n'
-	let modelRequests = 0
 	await page.route('**/models/*.mpd', (route) => {
-		modelRequests++
 		return route.fulfill({ contentType: 'text/plain', body: fixture })
 	})
 	await page.addInitScript(() => {
@@ -396,29 +394,6 @@
 	check(
 		(await page.getByRole('alert').count()) === 0,
 		'repair and retry recover the failed model',
-	)
-	const requestsBeforeSimulation = modelRequests
-	await page.getByLabel('Simulate loading failure', { exact: true }).check()
-	await page.getByRole('alert').waitFor()
-	check(
-		modelRequests === requestsBeforeSimulation,
-		'simulated failure exercises the boundary without model network requests',
-	)
-	await page.getByLabel('Simulate loading failure', { exact: true }).uncheck()
-	await ready()
-	check(
-		(await page.getByRole('alert').count()) === 0,
-		'turning simulation off reloads the selected model',
-	)
-	await page.getByLabel('Simulate loading failure', { exact: true }).check()
-	await page.getByRole('alert').waitFor()
-	await page.getByRole('button', { name: 'Retry model' }).click()
-	await ready()
-	check(
-		(await page
-			.getByLabel('Simulate loading failure', { exact: true })
-			.isChecked()) === false,
-		'retry clears the failure simulation and recovers',
 	)
 	return { passed: checks.length, checks }
 }

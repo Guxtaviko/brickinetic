@@ -86,13 +86,13 @@ import { BrickModel, type MotionConfig } from 'brickinetic'
 
 const motion: MotionConfig = {
 	float: { axis: 'y', amplitude: 0.4, speed: 0.8 },
-	spin: { axis: 'y', speed: 0.2 },
+	spin: { axis: 'y', speed: 0.1 },
 }
 
 <BrickModel src='/models/ship.mpd' center motion={motion} />
 ```
 
-An object enables its preset unless `enabled` is false; omission or `false` disables it. Float supports X, Y and Z axes, defaults to Y, and defaults to amplitude `0.15` local model units and speed `0.8` radians per second. Spin defaults to the Y axis and speed `0.2` radians per second; X and Z are also supported. Both presets start at their identity pose. Speeds may be negative to reverse direction or zero to hold the phase. Amplitude must be finite and nonnegative, and speeds must be finite; invalid values throw an error naming the field.
+An object enables its preset unless `enabled` is false; omission or `false` disables it. Float supports X, Y and Z axes, defaults to Y, and defaults to amplitude `0.15` local model units and speed `0.8` radians per second. Spin defaults to the Y axis and speed `0.1` radians per second; X and Z are also supported. Both presets start at their identity pose. Speeds may be negative to reverse direction or zero to hold the phase. Amplitude must be finite and nonnegative, and speeds must be finite; invalid values throw an error naming the field.
 
 Float moves along its selected base-local axis using `amplitude × sin(phase)`. Its displacement is affected by the consumer's rotation and scale, so scale also scales the float distance. Spin pivots around the model's local origin, which is the bounds center when `center` is true and the model origin otherwise. The consumer's `position`, `rotation`, and `scale` remain the outer base transform.
 

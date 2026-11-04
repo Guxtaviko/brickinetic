@@ -83,7 +83,7 @@ export function advanceMotion(
 			? (previous.spinActive && previous.axis === axis
 					? previous.spinPhase
 					: 0) +
-				delta * (spin?.speed ?? 0.2)
+				delta * (spin?.speed ?? 0.1)
 			: 0,
 	}
 }

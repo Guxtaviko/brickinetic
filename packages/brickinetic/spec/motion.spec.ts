@@ -37,7 +37,7 @@ test('evaluates defaults, axes, composition and elapsed time independently of fr
 			assert.ok(Math.abs(pose.position[1] - 0.15 * Math.sin(0.8)) < 1e-6)
 			assert.ok(
 				Math.abs(
-					pose.rotation[(['x', 'y', 'z'] as const).indexOf(axis)] - 0.2,
+					pose.rotation[(['x', 'y', 'z'] as const).indexOf(axis)] - 0.1,
 				) < 1e-6,
 			)
 		}
