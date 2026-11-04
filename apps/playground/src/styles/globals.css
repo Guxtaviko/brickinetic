@@ -66,30 +66,6 @@ a {
 	@apply text-inherit;
 }
 
-.site-header {
-	@apply flex min-h-16 items-center justify-between border-b border-slate-900/20 font-mono text-xs font-bold tracking-wider;
-}
-
-.site-header a {
-	@apply flex items-center gap-3 no-underline;
-}
-
-.site-header > span {
-	@apply text-slate-500;
-}
-
-.brand-mark {
-	@apply grid size-8 place-items-center bg-red-700 text-lg text-white;
-}
-
-.intro {
-	@apply flex items-end justify-between gap-8 py-8 pb-6;
-}
-
-.eyebrow {
-	@apply mb-2 text-xs font-mono font-bold tracking-wider text-red-700;
-}
-
 h1 {
 	@apply m-0 font-heading text-5xl leading-none font-normal tracking-tight;
 }
@@ -98,103 +74,17 @@ h1 em {
 	@apply text-red-700;
 }
 
-.intro > p {
-	@apply m-0 text-sm leading-7 text-slate-500;
-}
-
-.workspace {
-	@apply grid h-[clamp(440px,68dvh,800px)] grid-cols-[minmax(0,1fr)_310px] border border-slate-400 bg-slate-100 shadow-lg;
-}
-
-.viewer {
-	@apply flex min-h-0 min-w-0 flex-col p-3.5;
-}
-
 .viewer-heading,
-.specimen {
-	@apply flex shrink-0 justify-between gap-4 font-mono text-xs text-slate-500;
-}
-
-.viewer-heading {
-	@apply pb-3;
-}
-
-.viewer-heading b {
-	@apply text-red-700;
-}
-
-.canvas-shell {
-	@apply relative min-h-0 flex-1 overflow-hidden border border-slate-300 bg-slate-200;
-}
-
-.specimen {
-	@apply pt-3;
-}
-
-.specimen b {
-	@apply text-slate-900;
-}
-
-.specimen a {
-	@apply no-underline;
-}
-
 .model-status {
 	@apply pointer-events-none absolute bottom-3 left-3 flex max-w-full items-center gap-2 border border-slate-300 bg-slate-50/95 px-2.5 py-2 font-mono text-xs;
-}
-
-.model-status i {
-	@apply size-2 rounded-full bg-amber-600;
-}
-
-.model-status[data-status="ready"] i {
-	@apply bg-emerald-600;
-}
-
-.axis-key {
-	@apply m-0 font-mono text-xs tracking-wide text-slate-500;
-}
-
-.axis-preview {
-	@apply pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2;
 }
 
 .axis-preview-toggle {
 	@apply inline-flex cursor-pointer items-center gap-2 border border-slate-300 bg-slate-50/90 px-2 py-1 font-mono text-xs text-slate-600;
 }
 
-.axis-key span {
-	@apply mr-2 font-bold;
-}
-
-.axis-x {
-	@apply text-red-700;
-}
-
-.axis-y {
-	@apply text-green-700;
-}
-
-.axis-z {
-	@apply text-blue-700;
-}
-
-.controls {
-	@apply min-h-0 overflow-y-auto border-l border-slate-300 p-4;
-	overscroll-behavior: contain;
-	scrollbar-gutter: stable;
-}
-
-.controls-heading {
-	@apply mb-5;
-}
-
 h2 {
 	@apply m-0 font-heading text-2xl font-normal;
-}
-
-.control-section {
-	@apply mb-5 min-w-0 border-0 border-b border-slate-300 pb-5;
 }
 
 .control-section:last-child {
@@ -205,72 +95,16 @@ legend {
 	@apply mb-3 p-0 font-mono text-xs font-bold tracking-wide;
 }
 
-.model-picker {
-	@apply grid gap-2 font-mono text-xs font-bold;
-}
-
 select {
 	@apply max-w-full rounded-none border border-slate-400 bg-slate-50 p-2 font-mono text-xs text-slate-900;
 }
 
-.model-picker select {
-	@apply w-full px-2 py-3;
-}
-
-.hint {
-	@apply mt-2 mb-0 text-xs leading-6 text-slate-500;
-}
-
 .toggle,
-.select-row {
-	@apply flex min-h-9 items-center justify-between gap-3 font-mono text-xs;
-}
-
-.toggle {
-	@apply cursor-pointer;
-}
-
 input[type="checkbox"] {
 	@apply size-4 accent-red-700;
 }
 
-.slider {
-	@apply my-3 block font-mono text-xs;
-}
-
-.slider > span {
-	@apply mb-2 flex justify-between gap-2;
-}
-
-.slider output {
-	@apply font-bold text-red-700;
-}
-
-.slider input {
-	@apply block w-full cursor-ew-resize accent-red-700;
-}
-
-.manual-button {
-	@apply mt-3 w-full font-mono text-xs;
-}
-
-.api-example {
-	@apply mt-4 grid grid-cols-[145px_minmax(0,1fr)_250px] items-center gap-5 bg-slate-900 p-5 text-slate-100;
-}
-
-.api-example .eyebrow {
-	@apply text-red-300;
-}
-
-.api-example pre {
-	@apply m-0 overflow-x-auto font-mono text-xs leading-6;
-}
-
-.api-example > p:last-child {
-	@apply m-0 text-xs leading-6 text-slate-400;
-}
-
-footer {
+.api-example footer {
 	@apply flex justify-between gap-4 pt-5 font-mono text-xs tracking-wider text-slate-500;
 }
 
@@ -278,45 +112,8 @@ footer {
 	@apply absolute inset-0 z-10 flex flex-col items-start justify-center overflow-y-auto bg-slate-100 p-4 sm:p-8 lg:p-12;
 }
 
-.load-error p {
-	@apply my-4 font-mono text-xs leading-6;
-	overflow-wrap: anywhere;
-}
-
 @media (max-width: 760px) {
-	.site-header > span {
-		@apply hidden;
-	}
-
-	.intro {
-		@apply block pt-6;
-	}
-
-	.intro > p {
-		@apply mt-3.5;
-	}
-
-	.workspace {
-		@apply flex h-auto flex-col;
-	}
-
-	.viewer {
-		@apply h-[clamp(320px,65dvh,600px)] flex-none;
-	}
-
 	.viewer-heading,
-	.specimen {
-		@apply gap-2 text-xs;
-	}
-
-	.controls {
-		@apply overflow-visible border-t border-l-0 border-slate-300;
-	}
-
-	.api-example {
-		@apply grid-cols-1 gap-3;
-	}
-
 	footer {
 		@apply flex-col text-xs;
 	}

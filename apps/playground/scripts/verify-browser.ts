@@ -95,13 +95,13 @@
 		'XYZ axes are rendered in the scene by default',
 	)
 	check(
-		(await page.locator('.axis-key').count()) === 1,
+		(await page.getByLabel('coordinate axes').count()) === 1,
 		'XYZ axis labels are displayed by default',
 	)
 	await xyzPreview.uncheck()
 	check(
 		!(await xyzPreviewIsInScene()) &&
-			(await page.locator('.axis-key').count()) === 0,
+			(await page.getByLabel('coordinate axes').count()) === 0,
 		'unchecking XYZ preview hides the scene axes and labels',
 	)
 	const pose = (name = 'inspection-primary') =>
@@ -328,7 +328,7 @@
 	check(
 		!(await xyzPreview.isChecked()) &&
 			!(await xyzPreviewIsInScene()) &&
-			(await page.locator('.axis-key').count()) === 0,
+			(await page.getByLabel('coordinate axes').count()) === 0,
 		'model selection preserves the hidden XYZ preview setting',
 	)
 	await page.getByLabel('Spin', { exact: true }).check()

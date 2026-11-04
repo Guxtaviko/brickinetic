@@ -68,9 +68,13 @@ class ModelErrorBoundary extends Component<
 		if (this.state.error)
 			return (
 				<div className='load-error' role='alert'>
-					<span className='eyebrow'>LOAD INTERRUPTED</span>
+					<span className='mb-2 text-xs font-mono font-bold tracking-wider text-red-700'>
+						LOAD INTERRUPTED
+					</span>
 					<h2>Model unavailable</h2>
-					<p>{this.state.error.message}</p>
+					<p className='my-4 font-mono text-xs leading-6 [overflow-wrap:anywhere]'>
+						{this.state.error.message}
+					</p>
 					<button onClick={this.props.retry} type='button'>
 						Retry model
 					</button>
@@ -220,16 +224,17 @@ function Slider({
 	onChange: (value: number) => void
 }) {
 	return (
-		<label className='slider'>
-			<span>
+		<label className='my-3 block font-mono text-xs'>
+			<span className='mb-2 flex justify-between gap-2'>
 				{label}
-				<output>
+				<output className='font-bold text-red-700'>
 					{value.toFixed(step < 1 ? 2 : 0)}
 					{unit}
 				</output>
 			</span>
 			<input
 				aria-label={label}
+				className='block w-full cursor-ew-resize accent-red-700'
 				type='range'
 				min={min}
 				max={max}
@@ -251,7 +256,7 @@ function Toggle({
 	onChange: (checked: boolean) => void
 }) {
 	return (
-		<label className='toggle'>
+		<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs cursor-pointer'>
 			<span>{label}</span>
 			<input
 				type='checkbox'
@@ -272,7 +277,7 @@ function AxisSelect({
 	onChange: (value: Axis) => void
 }) {
 	return (
-		<label className='select-row'>
+		<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
 			<span>{label}</span>
 			<select
 				aria-label={label}
@@ -412,30 +417,46 @@ export default function App() {
 
 	return (
 		<main>
-			<header className='site-header'>
-				<a href='/' aria-label='Brickinetic home'>
-					<b className='brand-mark'>B</b> BRICKINETIC
+			<header className='flex min-h-16 items-center justify-between border-b border-slate-900/20 font-mono text-xs font-bold tracking-wider'>
+				<a
+					href='/'
+					aria-label='Brickinetic home'
+					className='flex items-center gap-3 no-underline'
+				>
+					<b className='grid size-8 place-items-center bg-red-700 text-lg text-white'>
+						B
+					</b>{' '}
+					BRICKINETIC
 				</a>
-				<span>LDRAW / REACT THREE FIBER</span>
+				<span className='text-slate-500 max-[760px]:hidden'>
+					LDRAW / REACT THREE FIBER
+				</span>
 			</header>
-			<section className='intro'>
+			<section className='flex items-end justify-between gap-8 py-8 pb-6 max-[760px]:block max-[760px]:pt-6'>
 				<div>
-					<p className='eyebrow'>REAL BRICKS. A FEW PROPS.</p>
+					<p className='mb-2 text-xs font-mono font-bold tracking-wider text-red-700'>
+						REAL BRICKS. A FEW PROPS.
+					</p>
 					<h1>
 						Model <em>in</em> motion.
 					</h1>
 				</div>
-				<p>Pick a model. Give it a little motion.</p>
+				<p className='m-0 text-sm leading-7 text-slate-500 max-[760px]:mt-3.5'>
+					Pick a model. Give it a little motion.
+				</p>
 			</section>
-			<div className='workspace'>
-				<section className='viewer' aria-label='Live model viewport'>
-					<div className='viewer-heading'>
+			<div className='grid h-[clamp(440px,68dvh,800px)] grid-cols-[minmax(0,1fr)_310px] border border-slate-400 bg-slate-100 shadow-lg max-[760px]:flex max-[760px]:h-auto max-[760px]:flex-col'>
+				<section
+					className='flex min-h-0 min-w-0 flex-col p-3.5 max-[760px]:h-[clamp(320px,65dvh,600px)] max-[760px]:flex-none'
+					aria-label='Live model viewport'
+				>
+					<div className='flex shrink-0 justify-between gap-4 font-mono text-xs text-slate-500 pb-3 max-[760px]:gap-2'>
 						<span>
-							<b>01</b> / LIVE VIEWPORT
+							<b className='text-red-700'>01</b> / LIVE VIEWPORT
 						</span>
 						<span>DRAG TO ORBIT · SCROLL TO ZOOM</span>
 					</div>
-					<div className='canvas-shell'>
+					<div className='relative min-h-0 flex-1 overflow-hidden border border-slate-300 bg-slate-200'>
 						<ModelErrorBoundary
 							key={`${model.id}-${attempt}-${simulateFailure}`}
 							retry={retry}
@@ -483,10 +504,16 @@ export default function App() {
 							data-testid='model-status'
 							data-status={status === 'Model ready' ? 'ready' : 'pending'}
 						>
-							<i />
+							<i
+								className={
+									status === 'Model ready'
+										? 'size-2 rounded-full bg-emerald-600'
+										: 'size-2 rounded-full bg-amber-600'
+								}
+							/>
 							{status}
 						</div>
-						<div className='axis-preview'>
+						<div className='pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2'>
 							<label className='axis-preview-toggle'>
 								<input
 									aria-label='XYZ preview'
@@ -497,19 +524,23 @@ export default function App() {
 								<span>XYZ preview</span>
 							</label>
 							{xyzPreview && (
-								<figure className='axis-key' aria-label='coordinate axes'>
-									<span className='axis-x'>X</span>
-									<span className='axis-y'>Y</span>
-									<span className='axis-z'>Z</span>
+								<figure
+									className='m-0 font-mono text-xs tracking-wide text-slate-500'
+									aria-label='coordinate axes'
+								>
+									<span className='mr-2 font-bold text-orange-700'>X</span>
+									<span className='mr-2 font-bold text-green-700'>Y</span>
+									<span className='mr-2 font-bold text-blue-700'>Z</span>
 								</figure>
 							)}
 						</div>
 					</div>
-					<div className='specimen'>
+					<div className='flex shrink-0 justify-between gap-4 font-mono text-xs text-slate-500 pt-3 max-[760px]:gap-2'>
 						<span>
-							{model.set} / <b>{model.title}</b>
+							{model.set} / <b className='text-slate-900'>{model.title}</b>
 						</span>
 						<a
+							className='no-underline'
 							href='https://library.ldraw.org/omr/sets'
 							target='_blank'
 							rel='noreferrer'
@@ -518,16 +549,25 @@ export default function App() {
 						</a>
 					</div>
 				</section>
-				<aside className='controls' aria-label='Model controls'>
-					<div className='controls-heading'>
-						<p className='eyebrow'>CONSUMER INPUT</p>
+				<aside
+					className='min-h-0 overflow-y-auto border-l border-slate-300 p-4 overscroll-contain [scrollbar-gutter:stable] max-[760px]:overflow-visible max-[760px]:border-t max-[760px]:border-l-0 max-[760px]:border-slate-300'
+					aria-label='Model controls'
+				>
+					<div className='mb-5'>
+						<p className='mb-2 text-xs font-mono font-bold tracking-wider text-red-700'>
+							CONSUMER INPUT
+						</p>
 						<h2>Model setup</h2>
 					</div>
-					<section className='control-section'>
-						<label className='model-picker' htmlFor='model-select'>
+					<section className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
+						<label
+							className='grid gap-2 font-mono text-xs font-bold'
+							htmlFor='model-select'
+						>
 							Model
 							<select
 								aria-label='Model'
+								className='w-full px-2 py-3'
 								id='model-select'
 								value={model.id}
 								onChange={(e) => {
@@ -542,7 +582,7 @@ export default function App() {
 								))}
 							</select>
 						</label>
-						<p className='hint'>
+						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
 							Parts resolve from the LDraw library. A missing part fails the
 							draw; fix its availability and retry.
 						</p>
@@ -554,12 +594,12 @@ export default function App() {
 								setSimulateFailure(checked)
 							}}
 						/>
-						<p className='hint'>
+						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
 							Tests the loading-error UI without changing your connection or
 							cached files.
 						</p>
 					</section>
-					<fieldset className='control-section'>
+					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
 						<legend>Motion</legend>
 						<Toggle
 							label='Float'
@@ -608,14 +648,14 @@ export default function App() {
 							onChange={setSpinSpeed}
 							unit=' rad/s'
 						/>
-						<p className='hint'>
+						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
 							Axes follow the base transform. Changing an axis restarts that
 							preset.
 						</p>
 					</fieldset>
-					<fieldset className='control-section'>
+					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
 						<legend>Construction effects</legend>
-						<label className='select-row'>
+						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
 							Effect
 							<select
 								aria-label='Construction effect'
@@ -644,7 +684,7 @@ export default function App() {
 									checked={!relativeDistance}
 									onChange={(checked) => setRelativeDistance(!checked)}
 								/>
-								<label className='select-row'>
+								<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
 									{relativeDistance
 										? 'Distance multiplier'
 										: 'Explosion distance (LU)'}
@@ -681,12 +721,12 @@ export default function App() {
 							checked={driveEffect}
 							onChange={setDriveEffect}
 						/>
-						<p className='hint'>
+						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
 							The slider seeks either public progress source. The optional frame
 							driver is owned by this playground and stops when disabled.
 						</p>
 					</fieldset>
-					<fieldset className='control-section'>
+					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
 						<legend>Transform</legend>
 						<Slider
 							label='Position X'
@@ -714,7 +754,7 @@ export default function App() {
 							unit='×'
 						/>
 					</fieldset>
-					<fieldset className='control-section'>
+					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
 						<legend>Display & playback</legend>
 						<Toggle
 							label='Center bounds'
@@ -722,7 +762,7 @@ export default function App() {
 							onChange={setCenter}
 						/>
 						<Toggle label='Edge lines' checked={edges} onChange={setEdges} />
-						<label className='select-row'>
+						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
 							Reduced motion
 							<select
 								aria-label='Reduced motion'
@@ -736,7 +776,7 @@ export default function App() {
 								<option value='never'>Allow motion</option>
 							</select>
 						</label>
-						<label className='select-row'>
+						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
 							Render loop
 							<select
 								aria-label='Render loop'
@@ -748,7 +788,7 @@ export default function App() {
 								<option value='never'>Manual</option>
 							</select>
 						</label>
-						<p className='hint'>
+						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
 							Continuous renders every frame, even when static. Demand renders
 							when requested and keeps rendering during motion. Manual renders
 							only when you advance it.
@@ -756,13 +796,13 @@ export default function App() {
 						{frameloop === 'never' && (
 							<>
 								<button
-									className='manual-button'
+									className='mt-3 w-full font-mono text-xs'
 									type='button'
 									onClick={() => step.current?.()}
 								>
 									Advance 1/60 second
 								</button>
-								<p className='hint'>
+								<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
 									Each click advances time by 1/60 second. Always reduce
 									disables motion under any render-loop mode.
 								</p>
@@ -771,15 +811,20 @@ export default function App() {
 					</fieldset>
 				</aside>
 			</div>
-			<section className='api-example' aria-label='Consumer code example'>
-				<p className='eyebrow'>02 / PUBLIC API</p>
-				<pre>
+			<section
+				className='mt-4 grid grid-cols-[145px_minmax(0,1fr)_250px] items-center gap-5 bg-slate-900 p-5 text-slate-100 max-[760px]:grid-cols-1 max-[760px]:gap-3'
+				aria-label='Consumer code example'
+			>
+				<p className='mb-2 text-xs font-mono font-bold tracking-wider text-red-300'>
+					02 / PUBLIC API
+				</p>
+				<pre className='m-0 overflow-x-auto font-mono text-xs leading-6'>
 					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} }${reducedMotion === 'system' ? '' : `,\n    reducedMotion: '${reducedMotion}'`} }}\n  ${effect === 'explosion' ? `explosion={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`}, ${relativeDistance ? `distanceMultiplier: ${explosionMultiplier}` : `distance: ${explosionDistance}`} }}` : effect === 'assembly' ? `assembly={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`} }}` : ''} />`}</code>
 				</pre>
-				<pre>
+				<pre className='m-0 overflow-x-auto font-mono text-xs leading-6'>
 					<code>{`import { useFrame } from '@react-three/fiber'\nimport { BrickModel, createBrickEffectController } from 'brickinetic'\n\nconst controller = createBrickEffectController()\n\n// Inside a component within your Canvas:\nuseFrame((_, delta) => {\n  controller.setProgress(controller.getProgress() + delta * 0.1)\n})\n\n<BrickModel src="${src}" explosion={{ controller }} />`}</code>
 				</pre>
-				<p>
+				<p className='m-0 text-xs leading-6 text-slate-400'>
 					Use inside your Canvas and Suspense boundary. Missing parts reach your
 					error boundary.
 				</p>
