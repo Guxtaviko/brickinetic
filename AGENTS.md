@@ -20,10 +20,14 @@ and animating LDraw models with React Three Fiber.
 
 ## Playground styling and assets
 
-- Use Tailwind CSS for playground styling. Prefer utility classes in JSX; use `@apply` in CSS for reusable groups when it improves clarity.
+- Use Tailwind CSS for playground styling. Prefer utility classes in JSX; use `@apply` in CSS for reusable groups or when it improves clarity (like elements with over 10 tw classes).
 - Retain the existing Tailwind Vite integration and theme tokens. Avoid replacing Tailwind with a separate styling system or broad global element rules.
 - Preserve accessible labels, keyboard operation, visible focus, reduced-motion support, and responsive layouts.
 - Keep demonstration models and their provenance and license information in the playground. Keep spec fixtures in `spec/fixtures/`; do not distribute demo models as library runtime assets.
+
+## Commit messages
+
+- All commits created by agents MUST follow the Conventional Commits format: `<type>(<optional scope>): <imperative summary>`. Use a fitting type such as `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, or `chore`; keep the summary concise and lowercase after the colon. Examples: `feat(playground): redesign model inspector`, `fix(loader): preserve embedded part precedence`.
 
 ## Architecture
 
