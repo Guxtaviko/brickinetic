@@ -210,7 +210,7 @@ export function BrickModel({
 			</group>
 			{effect?.playback && (
 				<EffectPlayback
-					key={playbackKey + src + partsLibraryPath}
+					key={JSON.stringify([playbackKey, src, partsLibraryPath])}
 					config={effect.playback}
 					permitted={permitted}
 					assembled={effect.type === 'assembly' ? 1 : 0}

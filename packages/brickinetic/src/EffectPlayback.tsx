@@ -18,6 +18,7 @@ export function EffectPlayback({
 	const frameloop = useThree((state) => state.frameloop)
 	const elapsed = useRef(0)
 	const initialized = useRef(false)
+	const reported = useRef<number | undefined>(undefined)
 	const last = useRef(performance.now())
 	const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 	const hidden = useRef(typeof document !== 'undefined' && document.hidden)
@@ -27,7 +28,7 @@ export function EffectPlayback({
 		timer.current = undefined
 	}, [])
 	const tick = useCallback(
-		(manualDelta?: number) => {
+		(manualDelta?: number, notify = true) => {
 			clear()
 			const current = options.current
 			const now = performance.now()
@@ -39,7 +40,10 @@ export function EffectPlayback({
 			const pose = playbackPose(current.config, elapsed.current)
 			const progress = current.permitted ? pose.progress : current.assembled
 			current.apply(progress)
-			current.config.onProgress?.(progress)
+			if (notify && reported.current !== progress) {
+				reported.current = progress
+				current.config.onProgress?.(progress)
+			}
 			if (
 				!current.permitted ||
 				current.config.paused ||
@@ -63,16 +67,31 @@ export function EffectPlayback({
 		[clear, frameloop, invalidate],
 	)
 	useLayoutEffect(() => {
-		// Account for an in-progress hold before a pause, then retain its remaining time.
-		if (initialized.current && frameloop !== 'never') tick()
+		const previous = options.current
+		const now = performance.now()
+		// Reconciliation accounts for a running hold without notifying an old callback.
+		// Identity-only configuration updates must not feed an observer's state back into layout.
+		if (
+			initialized.current &&
+			frameloop !== 'never' &&
+			previous.permitted &&
+			!previous.config.paused &&
+			!hidden.current
+		) {
+			elapsed.current += Math.max(0, (now - last.current) / 1000)
+		}
+		const notify =
+			!initialized.current ||
+			previous.permitted !== permitted ||
+			previous.config.paused !== config.paused
 		initialized.current = true
-		const wasPermitted = options.current.permitted
 		options.current = { config, permitted, assembled, apply }
-		if (!wasPermitted && permitted) elapsed.current = 0
-		last.current = performance.now()
-		tick(0)
+		if (!previous.permitted && permitted) elapsed.current = 0
+		last.current = now
+		tick(0, notify)
 		invalidate()
 	}, [config, permitted, assembled, apply, tick, invalidate, frameloop])
+
 	useEffect(() => {
 		const visibility = () => {
 			if (!hidden.current && frameloop !== 'never') tick()

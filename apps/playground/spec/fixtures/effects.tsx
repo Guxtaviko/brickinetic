@@ -20,6 +20,7 @@ interface Harness {
 	pose: () => number[][]
 	progress: number
 	frames: number
+	observerCommits: number
 	ready: boolean
 }
 declare global {
@@ -33,6 +34,7 @@ const harness: Harness = {
 	pose: () => [],
 	progress: -1,
 	frames: 0,
+	observerCommits: 0,
 	ready: false,
 }
 window.effectHarness = harness
@@ -60,6 +62,17 @@ function Probe() {
 	return null
 }
 function Fixture() {
+	const [observed, setObserved] = useState(0)
+	const stateObserver = new URLSearchParams(location.search).has(
+		'state-observer',
+	)
+	useLayoutEffect(() => {
+		harness.observerCommits++
+	})
+	const reportProgress = (progress: number) => {
+		report(progress)
+		if (stateObserver) setObserved(progress)
+	}
 	const [settings, setSettings] = useState<Settings>({
 		effect: {
 			type: 'explosion',
@@ -80,25 +93,29 @@ function Fixture() {
 	const effect = settings.effect?.playback
 		? {
 				...settings.effect,
-				playback: { ...settings.effect.playback, onProgress: report },
+				playback: { ...settings.effect.playback, onProgress: reportProgress },
 			}
 		: settings.effect
 	return (
-		<Canvas frameloop={settings.loop} camera={{ position: [0, 0, 100] }}>
-			<ambientLight />
-			<Suspense fallback={null}>
-				{settings.mounted && (
-					<BrickModel
-						key={settings.replay}
-						src='/models/car.mpd'
-						effect={effect}
-						reducedMotion={settings.reducedMotion}
-						center
-					/>
-				)}
-				<Probe />
-			</Suspense>
-		</Canvas>
+		<>
+			{' '}
+			<output data-testid='observed'>{observed}</output>
+			<Canvas frameloop={settings.loop} camera={{ position: [0, 0, 100] }}>
+				<ambientLight />
+				<Suspense fallback={null}>
+					{settings.mounted && (
+						<BrickModel
+							key={settings.replay}
+							src='/models/car.mpd'
+							effect={effect}
+							reducedMotion={settings.reducedMotion}
+							center
+						/>
+					)}
+					<Probe />
+				</Suspense>
+			</Canvas>
+		</>
 	)
 }
 const root = document.getElementById('root')

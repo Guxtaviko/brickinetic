@@ -173,3 +173,21 @@ test('hidden time is excluded and playback resumes from the retained pose', asyn
 		.poll(() => page.evaluate(() => window.effectHarness.progress))
 		.toBeGreaterThan(hidden + 0.03)
 })
+
+test('React state progress observers do not create layout feedback loops', async ({
+	page,
+}) => {
+	const errors: string[] = []
+	page.on('pageerror', (error) => errors.push(error.message))
+	await page.goto('http://127.0.0.1:4185/effects.html?state-observer')
+	await expect
+		.poll(() => page.evaluate(() => window.effectHarness.ready))
+		.toBe(true)
+	await page.waitForTimeout(250)
+	expect(errors).toEqual([])
+	const counts = await page.evaluate(() => ({
+		commits: window.effectHarness.observerCommits,
+		frames: window.effectHarness.frames,
+	}))
+	expect(counts.commits).toBeLessThanOrEqual(counts.frames + 10)
+})
