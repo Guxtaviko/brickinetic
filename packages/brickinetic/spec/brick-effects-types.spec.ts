@@ -13,8 +13,13 @@ type ControllerHasNoPublicBind = 'bind' extends keyof BrickEffectController
 	: true
 const controllerHasNoPublicBind: ControllerHasNoPublicBind = true
 
-const numericExplosion: ExplosionConfig = { progress: 0.5, distance: 24 }
+const numericExplosion: ExplosionConfig = {
+	type: 'explosion' as const,
+	progress: 0.5,
+	distance: 24,
+}
 const controlledAssembly: AssemblyConfig = {
+	type: 'assembly' as const,
 	controller,
 	axis: 'z',
 	entrance: 'translate',
@@ -23,7 +28,11 @@ const controlledAssembly: AssemblyConfig = {
 }
 
 // @ts-expect-error An effect must have exactly one progress source.
-const conflictingSources: ExplosionConfig = { progress: 0.5, controller }
+const conflictingSources: ExplosionConfig = {
+	type: 'explosion' as const,
+	progress: 0.5,
+	controller,
+}
 // @ts-expect-error A progress source is required.
 const missingSource: AssemblyConfig = { axis: 'y' }
 
@@ -34,3 +43,12 @@ export type BrickEffectTypeAssertions = [
 	typeof missingSource,
 	typeof controllerHasNoPublicBind,
 ]
+
+// @ts-expect-error Absolute and model-relative distance are exclusive.
+const conflictingDistance: ExplosionConfig = {
+	type: 'explosion',
+	progress: 1,
+	distance: 1,
+	distanceMultiplier: 2,
+}
+void conflictingDistance

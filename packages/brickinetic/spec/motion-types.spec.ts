@@ -5,12 +5,11 @@ const examples: MotionConfig[] = [
 	{ float: { axis: 'y' } },
 	{ spin: { axis: 'x', speed: -1 } },
 	{
-		float: { enabled: false, amplitude: 0, speed: 1 },
+		float: { amplitude: 0, speed: 1 },
 		spin: { axis: 'z' },
-		reducedMotion: 'never',
 	},
-	{ float: false, spin: false, reducedMotion: 'system' },
-	{ float: { axis: 'z' }, spin: { axis: 'x' }, reducedMotion: 'always' },
+	{},
+	{ float: { axis: 'z' }, spin: { axis: 'x' } },
 ]
 const props: BrickModelProps = {
 	src: 'model.mpd',

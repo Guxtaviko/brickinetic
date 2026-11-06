@@ -3,6 +3,7 @@ import {
 	type AssemblyConfig,
 	type BrickEffectController,
 	BrickModel,
+	type BrickModelProps,
 	createBrickEffectController,
 	type ExplosionConfig,
 	type MotionConfig,
@@ -94,6 +95,7 @@ function ModelScene({
 	edges,
 	xyzPreview,
 	motion,
+	reducedMotion,
 	explosion,
 	assembly,
 	effectController,
@@ -108,6 +110,7 @@ function ModelScene({
 	edges: boolean
 	xyzPreview: boolean
 	motion: MotionConfig
+	reducedMotion: BrickModelProps['reducedMotion']
 	explosion?: ExplosionConfig
 	assembly?: AssemblyConfig
 	effectController: BrickEffectController
@@ -174,8 +177,8 @@ function ModelScene({
 					center={center}
 					edges={edges}
 					motion={motion}
-					explosion={explosion}
-					assembly={assembly}
+					reducedMotion={reducedMotion}
+					effect={explosion ?? assembly}
 					position={[positionX, 0, 0]}
 					rotation={rotation}
 					scale={scale}
@@ -307,12 +310,14 @@ export default function App() {
 			effect === 'explosion'
 				? controllerSource
 					? {
+							type: 'explosion',
 							controller: effectController,
 							...(relativeDistance
 								? { distanceMultiplier: explosionMultiplier }
 								: { distance: explosionDistance }),
 						}
 					: {
+							type: 'explosion',
 							progress: effectProgress,
 							...(relativeDistance
 								? { distanceMultiplier: explosionMultiplier }
@@ -334,12 +339,14 @@ export default function App() {
 			effect === 'assembly'
 				? controllerSource
 					? {
+							type: 'assembly',
 							controller: effectController,
 							entrance: 'translate',
 							offset: [0, 28, 0],
 							easing: 'smoothstep',
 						}
 					: {
+							type: 'assembly',
 							progress: effectProgress,
 							entrance: 'translate',
 							offset: [0, 28, 0],
@@ -360,20 +367,20 @@ export default function App() {
 	const [floatSpeed, setFloatSpeed] = useState(0.8)
 	const [spinSpeed, setSpinSpeed] = useState(0.1)
 	const [reducedMotion, setReducedMotion] =
-		useState<MotionConfig['reducedMotion']>('system')
+		useState<BrickModelProps['reducedMotion']>('system')
 	const [positionX, setPositionX] = useState(0)
 	const [rotationY, setRotationY] = useState(0)
 	const [scale, setScale] = useState(1)
 	const motion = useMemo<MotionConfig>(
 		() => ({
-			float: {
-				enabled: floatEnabled,
-				axis: floatAxis,
-				amplitude,
-				speed: floatSpeed,
-			},
-			spin: { enabled: spinEnabled, axis: spinAxis, speed: spinSpeed },
-			reducedMotion,
+			float: floatEnabled
+				? {
+						axis: floatAxis,
+						amplitude,
+						speed: floatSpeed,
+					}
+				: undefined,
+			spin: spinEnabled ? { axis: spinAxis, speed: spinSpeed } : undefined,
 		}),
 		[
 			floatEnabled,
@@ -458,6 +465,7 @@ export default function App() {
 										edges={edges}
 										xyzPreview={xyzPreview}
 										motion={motion}
+										reducedMotion={reducedMotion}
 										explosion={explosion}
 										assembly={assembly}
 										effectController={effectController}
@@ -750,7 +758,11 @@ export default function App() {
 					02 / PUBLIC API
 				</p>
 				<pre className='m-0 overflow-x-auto font-mono text-xs leading-6'>
-					<code>{`<BrickModel src="${src}" center\n  motion={{ float: { axis: '${floatAxis}', amplitude: ${amplitude} },\n    spin: { axis: '${spinAxis}', speed: ${spinSpeed} }${reducedMotion === 'system' ? '' : `,\n    reducedMotion: '${reducedMotion}'`} }}\n  ${effect === 'explosion' ? `explosion={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`}, ${relativeDistance ? `distanceMultiplier: ${explosionMultiplier}` : `distance: ${explosionDistance}`} }}` : effect === 'assembly' ? `assembly={{ ${controllerSource ? 'controller' : `progress: ${effectProgress.toFixed(2)}`} }}` : ''} />`}</code>
+					<code>{`<BrickModel src="${src}" center={${center}} edges={${edges}}
+  position={[${positionX}, 0, 0]} rotation={[0, ${(rotationY * Math.PI) / 180}, 0]} scale={${scale}}
+  reducedMotion="${reducedMotion}"
+  motion={${JSON.stringify(motion)}}
+  ${effect === 'explosion' ? `effect={{ type: 'explosion', ${controllerSource ? 'controller' : `progress: ${effectProgress}`}, ${relativeDistance ? `distanceMultiplier: ${explosionMultiplier}` : `distance: ${explosionDistance}`} }}` : effect === 'assembly' ? `effect={{ type: 'assembly', ${controllerSource ? 'controller' : `progress: ${effectProgress}`}, entrance: 'translate', offset: [0, 28, 0], easing: 'smoothstep' }}` : ''} />`}</code>
 				</pre>
 				<pre className='m-0 overflow-x-auto font-mono text-xs leading-6'>
 					<code>{`import { useFrame } from '@react-three/fiber'\nimport { BrickModel, createBrickEffectController } from 'brickinetic'\n\nconst controller = createBrickEffectController()\n\n// Inside a component within your Canvas:\nuseFrame((_, delta) => {\n  controller.setProgress(controller.getProgress() + delta * 0.1)\n})\n\n<BrickModel src="${src}" explosion={{ controller }} />`}</code>

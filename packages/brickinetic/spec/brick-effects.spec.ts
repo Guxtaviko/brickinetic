@@ -42,30 +42,42 @@ function setup() {
 test('controller retains progress across unbind and rejects concurrent bindings', () => {
 	const controller = createBrickEffectController(1.5)
 	assert.equal(controller.getProgress(), 1)
-	const unbind = bindBrickEffect({ controller }, () => {})
+	const unbind = bindBrickEffect(
+		{ type: 'explosion' as const, controller },
+		() => {},
+	)
 	assert.throws(
-		() => bindBrickEffect({ controller }, () => {}),
+		() => bindBrickEffect({ type: 'explosion' as const, controller }, () => {}),
 		/already bound/,
 	)
 	controller.setProgress(0.4)
 	assert.throws(() => controller.setProgress(Number.NaN), /finite/)
 	unbind()
 	assert.equal(controller.getProgress(), 0.4)
-	assert.equal(validateEffectConfig({ controller }), 0.4)
+	assert.equal(
+		validateEffectConfig({ type: 'explosion' as const, controller }),
+		0.4,
+	)
 })
 
 test('controller binding survives StrictMode-style replay and failed initial evaluation', () => {
 	const controller = createBrickEffectController(0.25)
 	assert.throws(
 		() =>
-			bindBrickEffect({ controller }, () => {
+			bindBrickEffect({ type: 'explosion' as const, controller }, () => {
 				throw new Error('initial apply failed')
 			}),
 		/initial apply failed/,
 	)
-	const first = bindBrickEffect({ controller }, () => {})
+	const first = bindBrickEffect(
+		{ type: 'explosion' as const, controller },
+		() => {},
+	)
 	first()
-	const second = bindBrickEffect({ controller }, () => {})
+	const second = bindBrickEffect(
+		{ type: 'explosion' as const, controller },
+		() => {},
+	)
 	controller.setProgress(0.75)
 	assert.equal(controller.getProgress(), 0.75)
 	second()
@@ -76,22 +88,33 @@ test('validates conflicting sources and clamps numeric progress', () => {
 	assert.throws(
 		() =>
 			validateEffectConfig({
+				type: 'explosion' as const,
 				progress: 0,
 				controller: createBrickEffectController(),
 			} as never),
 		/progress or controller/,
 	)
 	assert.throws(
-		() => validateEffectConfig({ progress: Number.POSITIVE_INFINITY }),
+		() =>
+			validateEffectConfig({
+				type: 'explosion' as const,
+				progress: Number.POSITIVE_INFINITY,
+			}),
 		/progress must be finite/,
 	)
-	assert.equal(validateEffectConfig({ progress: -2 }), 0)
-	assert.equal(validateEffectConfig({ progress: 2 }), 1)
+	assert.equal(
+		validateEffectConfig({ type: 'explosion' as const, progress: -2 }),
+		0,
+	)
+	assert.equal(
+		validateEffectConfig({ type: 'explosion' as const, progress: 2 }),
+		1,
+	)
 })
 
 test('explosion derives reversible poses from baseline for arbitrary seek histories', () => {
 	const { prepared, bindings } = setup()
-	const config = { progress: 0, distance: 10 }
+	const config = { type: 'explosion' as const, progress: 0, distance: 10 }
 	const baseline = bindings.map((binding) => binding.roots[0].matrix.toArray())
 	for (const progress of [1, 0.25, 0.9, 0])
 		applyBrickEffect(bindings, prepared, progress, config)
@@ -101,10 +124,18 @@ test('explosion derives reversible poses from baseline for arbitrary seek histor
 	)
 	assert.throws(
 		() =>
-			applyBrickEffect(bindings, prepared, 0, { progress: 0, distance: -1 }),
+			applyBrickEffect(bindings, prepared, 0, {
+				type: 'explosion' as const,
+				progress: 0,
+				distance: -1,
+			}),
 		/distance/,
 	)
-	applyBrickEffect(bindings, prepared, 2, { progress: 2, distance: 0 })
+	applyBrickEffect(bindings, prepared, 2, {
+		type: 'explosion' as const,
+		progress: 2,
+		distance: 0,
+	})
 	assert.deepEqual(
 		bindings.map((binding) => binding.roots[0].matrix.toArray()),
 		baseline,
@@ -113,6 +144,7 @@ test('explosion derives reversible poses from baseline for arbitrary seek histor
 	assert.throws(
 		() =>
 			applyBrickEffect(bindings, prepared, 0.2, {
+				type: 'explosion' as const,
 				progress: 0.2,
 				origin: [0, Number.NaN, 0],
 			}),
@@ -121,6 +153,7 @@ test('explosion derives reversible poses from baseline for arbitrary seek histor
 	assert.throws(
 		() =>
 			applyBrickEffect(bindings, prepared, 0.2, {
+				type: 'explosion' as const,
 				progress: 0.2,
 				distance: Number.POSITIVE_INFINITY,
 			}),
@@ -137,14 +170,23 @@ test('an explosion leaves a unit at its origin coincident with its baseline cent
 	const prepared = prepareConstructionUnits(model, 'origin')
 	const bindings = bindConstructionUnits(model.clone(true), prepared)
 	const baseline = bindings[0].roots[0].matrix.toArray()
-	applyBrickEffect(bindings, prepared, 1, { progress: 1, distance: 20 })
+	applyBrickEffect(bindings, prepared, 1, {
+		type: 'explosion' as const,
+		progress: 1,
+		distance: 20,
+	})
 	assert.deepEqual(bindings[0].roots[0].matrix.toArray(), baseline)
 })
 
 test('explosion clamps endpoints and applies distance from the configured origin', () => {
 	const { prepared, bindings } = setup()
 	const baseline = bindings.map(({ roots }) => roots[0].position.clone())
-	const config = { progress: 0, origin: [0, 0, 0] as const, distance: 10 }
+	const config = {
+		type: 'explosion' as const,
+		progress: 0,
+		origin: [0, 0, 0] as const,
+		distance: 10,
+	}
 	applyBrickEffect(bindings, prepared, 2, config)
 	for (let i = 0; i < bindings.length; i++)
 		assert.ok(
@@ -162,7 +204,11 @@ test('model-relative explosion uses bounds and validates configuration', () => {
 	assert.ok(bounds)
 	const size = Math.max(...bounds.max.map((v, i) => v - bounds.min[i]))
 	const baseline = bindings.map(({ roots }) => roots[0].position.clone())
-	applyBrickEffect(bindings, prepared, 1, { progress: 1, origin: [0, 0, 0] })
+	applyBrickEffect(bindings, prepared, 1, {
+		type: 'explosion' as const,
+		progress: 1,
+		origin: [0, 0, 0],
+	})
 	for (let i = 0; i < bindings.length; i++)
 		assert.ok(
 			Math.abs(
@@ -170,6 +216,7 @@ test('model-relative explosion uses bounds and validates configuration', () => {
 			) < 1e-6,
 		)
 	applyBrickEffect(bindings, prepared, 1, {
+		type: 'explosion' as const,
 		progress: 1,
 		distanceMultiplier: 2,
 		origin: [0, 0, 0],
@@ -180,6 +227,7 @@ test('model-relative explosion uses bounds and validates configuration', () => {
 				1e-6,
 		)
 	applyBrickEffect(bindings, prepared, 0, {
+		type: 'explosion' as const,
 		progress: 0,
 		distanceMultiplier: 1,
 	})
@@ -189,6 +237,7 @@ test('model-relative explosion uses bounds and validates configuration', () => {
 		assert.throws(
 			() =>
 				applyBrickEffect(bindings, prepared, 1, {
+					type: 'explosion' as const,
 					progress: 1,
 					distanceMultiplier,
 				}),
@@ -196,11 +245,17 @@ test('model-relative explosion uses bounds and validates configuration', () => {
 		)
 	assert.throws(
 		() =>
-			applyBrickEffect(bindings, prepared, 1, {
-				progress: 1,
-				distance: 1,
-				distanceMultiplier: 1,
-			}),
+			Reflect.apply(applyBrickEffect, undefined, [
+				bindings,
+				prepared,
+				1,
+				{
+					type: 'explosion' as const,
+					progress: 1,
+					distance: 1,
+					distanceMultiplier: 1,
+				},
+			]),
 		/either distance/,
 	)
 })
@@ -208,6 +263,7 @@ test('model-relative explosion uses bounds and validates configuration', () => {
 test('assembly entrances seek with easing and react to reduced motion', () => {
 	const { prepared, bindings } = setup()
 	const config = {
+		type: 'assembly' as const,
 		progress: 0,
 		entrance: 'translate' as const,
 		offset: [8, 0, 0] as const,
@@ -233,7 +289,7 @@ test('assembly entrances seek with easing and react to reduced motion', () => {
 		bindings,
 		prepared,
 		0.125,
-		{ progress: 0 },
+		{ type: 'explosion' as const, progress: 0 },
 		false,
 		'assembly',
 	)
@@ -253,7 +309,7 @@ test('missing unit bounds fail with source and occurrence even for a single unit
 				[{ unit, roots: bindings[0].roots }],
 				prepared,
 				0.5,
-				{ progress: 0.5 },
+				{ type: 'explosion' as const, progress: 0.5 },
 				false,
 				'assembly',
 			),
@@ -273,6 +329,7 @@ test('effect seeks and restoration are isolated between instances sharing prepar
 	const second = bindConstructionUnits(model.clone(true), prepared)
 	const baseline = second[0].roots[0].matrix.toArray()
 	applyBrickEffect(first, prepared, 1, {
+		type: 'explosion' as const,
 		progress: 1,
 		origin: [0, 0, 0],
 		distance: 10,
@@ -286,6 +343,7 @@ test('effect seeks and restoration are isolated between instances sharing prepar
 test('assembly uses stable axis order and strict positive stage visibility', () => {
 	const { prepared, bindings } = setup()
 	const config = {
+		type: 'assembly' as const,
 		progress: 0,
 		entrance: 'translate' as const,
 		offset: [3, 0, 0] as const,
@@ -305,7 +363,11 @@ test('assembly uses stable axis order and strict positive stage visibility', () 
 				bindings,
 				prepared,
 				0.4,
-				{ progress: 0.4, offset: [0, Number.NaN, 0] },
+				{
+					type: 'assembly' as const,
+					progress: 0.4,
+					offset: [0, Number.NaN, 0],
+				},
 				false,
 				'assembly',
 			),
@@ -317,7 +379,7 @@ test('assembly uses stable axis order and strict positive stage visibility', () 
 				bindings,
 				prepared,
 				0.4,
-				{ progress: 0.4, axis: 'q' } as never,
+				{ type: 'assembly' as const, progress: 0.4, axis: 'q' } as never,
 				false,
 				'assembly',
 			),
@@ -349,7 +411,7 @@ test('assembly keeps baseline edge visibility independent from the edges setting
 		bindings,
 		prepared,
 		1,
-		{ progress: 1 },
+		{ type: 'explosion' as const, progress: 1 },
 		false,
 		'assembly',
 		false,
@@ -359,7 +421,7 @@ test('assembly keeps baseline edge visibility independent from the edges setting
 		bindings,
 		prepared,
 		1,
-		{ progress: 1 },
+		{ type: 'explosion' as const, progress: 1 },
 		false,
 		'assembly',
 		true,
@@ -386,7 +448,7 @@ test('assembly ordering uses numeric occurrence paths for ties and supports desc
 		bindings,
 		prepared,
 		0.5,
-		{ progress: 0.5 },
+		{ type: 'explosion' as const, progress: 0.5 },
 		false,
 		'assembly',
 	)
@@ -409,7 +471,7 @@ test('assembly ordering uses numeric occurrence paths for ties and supports desc
 		directionalBindings,
 		directionalPrepared,
 		0.5,
-		{ progress: 0.5, direction: 'descending' },
+		{ type: 'assembly' as const, progress: 0.5, direction: 'descending' },
 		false,
 		'assembly',
 	)
@@ -422,7 +484,7 @@ test('assembly ordering uses numeric occurrence paths for ties and supports desc
 			[],
 			emptyPrepared,
 			0.5,
-			{ progress: 0.5 },
+			{ type: 'explosion' as const, progress: 0.5 },
 			false,
 			'assembly',
 		),

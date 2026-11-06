@@ -28,18 +28,18 @@ const Sample = () => (
 
 ### Props
 
-| Prop               | Type               | Default        | Behavior                                                                         |
-| ------------------ | ------------------ | -------------- | -------------------------------------------------------------------------------- |
-| `src`              | `string`           | required       | URL of an MPD; embedded and externally resolved geometry are supported.          |
-| `partsLibraryPath` | `string`           | hosted default | Absolute HTTP(S) or origin-relative root of a LDraw library.                     |
-| `position`         | R3F group position | `[0, 0, 0]`    | Consumer translation, in LDraw units.                                            |
-| `rotation`         | R3F group rotation | `[0, 0, 0]`    | Consumer Euler rotation, in radians.                                             |
-| `scale`            | R3F group scale    | `[1, 1, 1]`    | Consumer scale.                                                                  |
-| `center`           | `boolean`          | `false`        | Moves the oriented bounds center to the local origin before consumer transforms. |
-| `edges`            | `boolean`          | `true`         | Shows or hides ordinary and conditional LDraw edges for this instance.           |
-| `motion`           | `MotionConfig`     | omitted        | Configures optional whole-model float and spin presets.                          |
-| `explosion`        | `ExplosionConfig`  | omitted        | Seeks construction units radially from their assembled bounds center.            |
-| `assembly`         | `AssemblyConfig`   | omitted        | Reveals units in stable visual order with optional translated entrances.         |
+| Prop               | Type                              | Default        | Behavior                                                                         |
+| ------------------ | --------------------------------- | -------------- | -------------------------------------------------------------------------------- |
+| `src`              | `string`                          | required       | URL of an MPD; embedded and externally resolved geometry are supported.          |
+| `partsLibraryPath` | `string`                          | hosted default | Absolute HTTP(S) or origin-relative root of a LDraw library.                     |
+| `position`         | R3F group position                | `[0, 0, 0]`    | Consumer translation, in LDraw units.                                            |
+| `rotation`         | R3F group rotation                | `[0, 0, 0]`    | Consumer Euler rotation, in radians.                                             |
+| `scale`            | R3F group scale                   | `[1, 1, 1]`    | Consumer scale.                                                                  |
+| `center`           | `boolean`                         | `false`        | Moves the oriented bounds center to the local origin before consumer transforms. |
+| `edges`            | `boolean`                         | `true`         | Shows or hides ordinary and conditional LDraw edges for this instance.           |
+| `motion`           | `MotionConfig`                    | omitted        | Configures optional whole-model float and spin presets.                          |
+| `effect`           | `BrickEffectConfig`               | omitted        | Selects assembly or explosion with exactly one progress driver.                  |
+| `reducedMotion`    | `'system' \| 'always' \| 'never'` | `'system'`     | Controls ambient motion and assembly translation.                                |
 
 ### Controlled construction effects
 
@@ -53,8 +53,8 @@ import { BrickModel, createBrickEffectController } from 'brickinetic'
 
 const controller = createBrickEffectController()
 controller.setProgress(0.5) // May be set before the model mounts.
-<BrickModel src='/models/ship.mpd' center explosion={{ controller, distance: 24 }} />
-// Or: <BrickModel src='/models/ship.mpd' assembly={{ progress: 0.6,
+<BrickModel src='/models/ship.mpd' center effect={{ type: 'explosion', controller, distance: 24 }} />
+// Or: <BrickModel src='/models/ship.mpd' effect={{ type: 'assembly', progress: 0.6,
 //   entrance: 'translate', offset: [0, 30, 0], easing: 'smoothstep' }} />
 ```
 
@@ -67,7 +67,7 @@ This is visual ordering, not authored construction order. For N units, unit i
 has local progress `clamp(N * progress - i, 0, 1)` and becomes visible only
 above zero; exact stage boundaries leave the next unit hidden. Assembly defaults
 to instant reveal; translation defaults to zero offset and linear easing, with
-`smoothstep` also available. Reduced motion follows `motion.reducedMotion`
+`smoothstep` also available. Reduced motion follows the top-level `reducedMotion` prop
 (default `system`) and makes assembly reveal the requested stages at baseline;
 preference changes apply while mounted. `always` reduces the entrance and
 `never` allows it. An unavailable preference API means no reduction. Explicit
@@ -92,11 +92,11 @@ const motion: MotionConfig = {
 <BrickModel src='/models/ship.mpd' center motion={motion} />
 ```
 
-An object enables its preset unless `enabled` is false; omission or `false` disables it. Float supports X, Y and Z axes, defaults to Y, and defaults to amplitude `0.15` local model units and speed `0.8` radians per second. Spin defaults to the Y axis and speed `0.1` radians per second; X and Z are also supported. Both presets start at their identity pose. Speeds may be negative to reverse direction or zero to hold the phase. Amplitude must be finite and nonnegative, and speeds must be finite; invalid values throw an error naming the field.
+An optional object enables its preset; omission disables it. Float supports X, Y and Z axes, defaults to Y, and defaults to amplitude `0.15` local model units and speed `0.8` radians per second. Spin defaults to the Y axis and speed `0.1` radians per second; X and Z are also supported. Both presets start at their identity pose. Speeds may be negative to reverse direction or zero to hold the phase. Amplitude must be finite and nonnegative, and speeds must be finite; invalid values throw an error naming the field.
 
 Float moves along its selected base-local axis using `amplitude × sin(phase)`. Its displacement is affected by the consumer's rotation and scale, so scale also scales the float distance. Spin pivots around the model's local origin, which is the bounds center when `center` is true and the model origin otherwise. The consumer's `position`, `rotation`, and `scale` remain the outer base transform.
 
-Changing an active speed preserves accumulated phase; changing amplitude takes effect at the current phase. Changing either axis resets that preset phase to zero and clears the previous axis offset. Disabling a preset, or reenabling it after it was disabled, restores/restarts it at zero while any other active preset continues. By default, motion follows the system `prefers-reduced-motion` setting, including changes while mounted. Set `reducedMotion: 'always'` to disable motion regardless of system preference, or `'never'` to allow motion regardless of preference. `always` does not subscribe to preference changes. Switching from `always` to an allowed policy restarts motion from zero; when the preference API is unavailable, system policy allows motion.
+Changing an active speed preserves accumulated phase; changing amplitude takes effect at the current phase. Changing either axis resets that preset phase to zero and clears the previous axis offset. Disabling a preset, or reenabling it after it was disabled, restores/restarts it at zero while any other active preset continues. By default, motion follows the system `prefers-reduced-motion` setting, including changes while mounted. Set the top-level `reducedMotion='always'` to disable motion regardless of system preference, or `'never'` to allow motion regardless of preference. `always` does not subscribe to preference changes. Switching from `always` to an allowed policy restarts motion from zero; when the preference API is unavailable, system policy allows motion.
 
 Motion uses elapsed frame time. Continuous and demand Canvas loops render it while active; a demand loop is invalidated for motion frames. With R3F's `frameloop="never"`, the consumer must advance the Canvas for motion to progress. Large elapsed intervals, such as returning to a suspended tab, are applied as elapsed time and can produce a visible jump.
 
@@ -126,3 +126,5 @@ Use Suspense for pending loads and an error boundary around the Canvas for failu
 The upstream resolver probes multiple directories, so a 404 for one candidate can precede successful resolution elsewhere. Large models make many requests on their first load. Brickinetic shares parsed model resources by source and effective parts-library path while consumers are mounted, then releases unused resources after a 1000 ms grace period. Three.js also caches parsed parts for the lifetime of each loader. Normal browser HTTP caching may reuse downloaded files, but its behavior depends on the browser and server headers. Brickinetic does not provide durable offline caching or enable Three.js's global cache. Self-contained MPDs need no external geometry requests, but the model and bundled color configuration must still be available locally for offline use. Syntax and extension support follows the installed Three.js loader; arbitrary LDraw extensions, including texture mapping, are not promised.
 
 The supported Three.js range is deliberately limited to r186. A small compatibility adapter observes its dependency cache because this version can otherwise omit failed nested parts. Recheck that adapter before expanding the peer range. OMR demo sources and attribution are documented in the playground; part files retain their own license notices.
+
+Easing is shared by both construction effects: `linear` (default), `smoothstep`, CSS-standard `ease`, `ease-in`, `ease-out`, `ease-in-out`, or a readonly cubic tuple `[x1, y1, x2, y2]`. Coordinates must be finite and X coordinates must be in [0, 1]; Y may overshoot, but evaluated construction progress is clamped. Endpoints are exact. Easing changes per-piece assembly entrance and explosion displacement, without changing ambient float/spin. `BrickEffectEasing` and `BrickEffectConfig` are exported. Explosion `distance` and `distanceMultiplier` are exclusive at both type and runtime levels.

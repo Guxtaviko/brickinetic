@@ -152,6 +152,7 @@ test('keeps shared resources through StrictMode replay and concurrent consumers'
 
 			const strictSetup = retainModel(src)
 			applyBrickEffect(strictBinding.units, strictBinding.prepared, 0.5, {
+				type: 'explosion' as const,
 				progress: 0.5,
 			})
 			restoreBrickEffects(strictBinding.units)

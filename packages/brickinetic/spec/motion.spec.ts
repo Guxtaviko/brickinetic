@@ -113,11 +113,7 @@ test('independent phases, zero speeds, enable transitions and preference gates r
 	const restarted = advanceMotion(stopped, config, 0)
 	assert.equal(restarted.floatPhase, 0)
 	assert.equal(restarted.spinPhase, 0)
-	const onlySpin = advanceMotion(
-		first,
-		{ float: { enabled: false }, spin: config.spin },
-		0,
-	)
+	const onlySpin = advanceMotion(first, { spin: config.spin }, 0)
 	assert.equal(onlySpin.floatPhase, 0)
 	assert.equal(onlySpin.spinPhase, first.spinPhase)
 })

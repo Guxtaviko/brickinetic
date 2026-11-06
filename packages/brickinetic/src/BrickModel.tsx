@@ -12,11 +12,10 @@ import {
 } from 'react'
 import type { Group } from 'three'
 import {
-	type AssemblyConfig,
 	applyBrickEffect,
+	type BrickEffectConfig,
 	bindBrickEffect,
 	captureBrickEffectVisibility,
-	type ExplosionConfig,
 	restoreBrickEffects,
 	validateEffectConfig,
 } from './brick-effects.js'
@@ -43,12 +42,12 @@ export interface BrickModelProps {
 	center?: boolean
 	edges?: boolean
 	motion?: MotionConfig
-	explosion?: ExplosionConfig
-	assembly?: AssemblyConfig
+	effect?: BrickEffectConfig
+	reducedMotion?: 'system' | 'always' | 'never'
 }
 
 function useReducedMotion(
-	policy: MotionConfig['reducedMotion'] = 'system',
+	policy: BrickModelProps['reducedMotion'] = 'system',
 	requested = true,
 ) {
 	const [preference, setPreference] = useState<{
@@ -98,12 +97,9 @@ function MotionDriver({
 	const frameloop = useThree((root) => root.frameloop)
 	const dynamic =
 		(!!config.float &&
-			config.float.enabled !== false &&
 			(config.float.speed ?? 0.8) !== 0 &&
 			(config.float.amplitude ?? 0.15) !== 0) ||
-		(!!config.spin &&
-			config.spin.enabled !== false &&
-			(config.spin.speed ?? 0.1) !== 0)
+		(!!config.spin && (config.spin.speed ?? 0.1) !== 0)
 	const applyPose = useCallback(
 		(delta: number) => {
 			state.current = advanceMotion(state.current, config, delta)
@@ -133,16 +129,13 @@ export function BrickModel({
 	center = false,
 	edges = true,
 	motion,
-	explosion,
-	assembly,
+	effect,
+	reducedMotion,
 }: BrickModelProps) {
 	validateMotion(motion)
-	validateEffectConfig(explosion, assembly)
-	const requested =
-		!!motion &&
-		((!!motion.float && motion.float.enabled !== false) ||
-			(!!motion.spin && motion.spin.enabled !== false))
-	const permitted = useReducedMotion(motion?.reducedMotion, requested)
+	validateEffectConfig(effect)
+	const requested = !!(motion?.float || motion?.spin)
+	const permitted = useReducedMotion(reducedMotion, requested || !!effect)
 	const model = useMemo(() => {
 		const clone = cloneModel(src, partsLibraryPath)
 		captureBrickEffectVisibility(clone)
@@ -158,19 +151,18 @@ export function BrickModel({
 	useEffect(() => retainModel(src, partsLibraryPath), [src, partsLibraryPath])
 	useLayoutEffect(() => setEdgeVisibility(model, edges), [model, edges])
 	const construction = getConstructionBindings(model)
-	const effectReduced = useReducedMotion(motion?.reducedMotion, !!assembly)
 	const invalidate = useThree((root) => root.invalidate)
 	useLayoutEffect(() => {
-		if (!construction || (!explosion && !assembly)) return
-		const config = (explosion ?? assembly) as ExplosionConfig | AssemblyConfig
+		if (!construction || !effect) return
+		const config = effect
 		const update = (progress: number) => {
 			applyBrickEffect(
 				construction.units,
 				construction.prepared,
 				progress,
 				config,
-				!!assembly && !effectReduced,
-				assembly ? 'assembly' : 'explosion',
+				effect.type === 'assembly' && !permitted,
+				effect.type,
 				edges,
 			)
 			invalidate()
@@ -182,15 +174,7 @@ export function BrickModel({
 			setEdgeVisibility(model, edges)
 			invalidate()
 		}
-	}, [
-		construction,
-		explosion,
-		assembly,
-		effectReduced,
-		invalidate,
-		model,
-		edges,
-	])
+	}, [construction, effect, permitted, invalidate, model, edges])
 	const active = permitted && requested
 	useLayoutEffect(() => {
 		if (!active) {

@@ -1,5 +1,10 @@
 import { Matrix4, type Object3D, Vector3 } from 'three'
 import type { PreparedModel, UnitSnapshot } from './construction-units.js'
+import {
+	type BrickEffectEasing,
+	evaluateEasing,
+	validateEasing,
+} from './easing.js'
 
 export type EffectProgress =
 	| { progress: number; controller?: never }
@@ -48,30 +53,35 @@ export function createBrickEffectController(
 	return controller
 }
 
-export type ExplosionConfig = EffectProgress & {
-	distance?: number
-	distanceMultiplier?: number
-	origin?: readonly [number, number, number]
-}
+type ExplosionDistance =
+	| { distance?: number; distanceMultiplier?: never }
+	| { distance?: never; distanceMultiplier: number }
+
+export type ExplosionConfig = EffectProgress &
+	ExplosionDistance & {
+		type: 'explosion'
+		easing?: BrickEffectEasing
+		origin?: readonly [number, number, number]
+	}
 
 export type AssemblyConfig = EffectProgress & {
+	type: 'assembly'
 	axis?: 'x' | 'y' | 'z'
 	direction?: 'ascending' | 'descending'
 	entrance?: 'instant' | 'translate'
 	offset?: readonly [number, number, number]
-	easing?: 'linear' | 'smoothstep'
+	easing?: BrickEffectEasing
 }
 
-export function validateEffectConfig(
-	explosion?: ExplosionConfig,
-	assembly?: AssemblyConfig,
-) {
-	if (explosion && assembly)
-		throw new Error('Configure either explosion or assembly, not both')
-	const config = explosion ?? assembly
+export type BrickEffectConfig = ExplosionConfig | AssemblyConfig
+
+export function validateEffectConfig(config?: BrickEffectConfig) {
 	if (!config) return 0
+	if (config.type !== 'assembly' && config.type !== 'explosion')
+		throw new Error('effect.type must be assembly or explosion')
 	if ((config.progress === undefined) === (config.controller === undefined))
 		throw new Error('Configure exactly one of progress or controller')
+	validateEasing(config.easing ?? 'linear')
 	return (
 		config.controller?.getProgress() ??
 		normalizeProgress(config.progress as number)
@@ -167,13 +177,15 @@ function midpoint(binding: BoundUnit, source: string) {
 		.multiplyScalar(0.5)
 }
 
+const orderCache = new WeakMap<readonly BoundUnit[], Map<string, BoundUnit[]>>()
+
 export function applyBrickEffect(
 	bindings: readonly BoundUnit[],
 	prepared: PreparedModel,
 	progressValue: number,
 	config: ExplosionConfig | AssemblyConfig,
 	reducedMotion = false,
-	kind: 'explosion' | 'assembly' = 'explosion',
+	kind: 'explosion' | 'assembly' = config.type,
 	edges = true,
 ) {
 	rememberVisibility(bindings)
@@ -211,7 +223,11 @@ export function applyBrickEffect(
 			move(
 				binding,
 				direction.lengthSq()
-					? direction.normalize().multiplyScalar(distance * progress)
+					? direction
+							.normalize()
+							.multiplyScalar(
+								distance * evaluateEasing(explosion.easing, progress),
+							)
 					: new Vector3(),
 			)
 		}
@@ -233,23 +249,28 @@ export function applyBrickEffect(
 		assembly.entrance !== 'translate'
 	)
 		throw new Error('entrance must be "instant" or "translate"')
-	if (
-		assembly.easing !== undefined &&
-		assembly.easing !== 'linear' &&
-		assembly.easing !== 'smoothstep'
-	)
-		throw new Error('easing must be "linear" or "smoothstep"')
+	validateEasing(assembly.easing ?? 'linear')
 	const coordinate = { x: 0, y: 1, z: 2 }[axis]
-	const ordered = [...bindings].sort((a, b) => {
-		const difference =
-			midpoint(a, prepared.source).toArray()[coordinate] -
-			midpoint(b, prepared.source).toArray()[coordinate]
-		const directed =
-			(assembly.direction ?? 'ascending') === 'ascending'
-				? difference
-				: -difference
-		return directed || comparePath(a.unit.path, b.unit.path)
-	})
+	let orders = orderCache.get(bindings)
+	if (!orders) {
+		orders = new Map()
+		orderCache.set(bindings, orders)
+	}
+	const orderKey = `${axis}:${assembly.direction ?? 'ascending'}`
+	let ordered = orders.get(orderKey)
+	if (!ordered) {
+		ordered = [...bindings].sort((a, b) => {
+			const difference =
+				midpoint(a, prepared.source).toArray()[coordinate] -
+				midpoint(b, prepared.source).toArray()[coordinate]
+			const directed =
+				(assembly.direction ?? 'ascending') === 'ascending'
+					? difference
+					: -difference
+			return directed || comparePath(a.unit.path, b.unit.path)
+		})
+		orders.set(orderKey, ordered)
+	}
 	const offset: readonly [number, number, number] = assembly.offset ?? [0, 0, 0]
 	offset.forEach((v, i) => {
 		if (!Number.isFinite(v)) throw new Error(`offset[${i}] must be finite`)
@@ -273,9 +294,7 @@ export function applyBrickEffect(
 		const eased =
 			reducedMotion || assembly.entrance !== 'translate'
 				? 1
-				: assembly.easing === 'smoothstep'
-					? local * local * (3 - 2 * local)
-					: local
+				: evaluateEasing(assembly.easing, local)
 		move(binding, new Vector3(...offset).multiplyScalar(1 - eased))
 	})
 }

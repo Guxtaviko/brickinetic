@@ -1,20 +1,17 @@
 export interface FloatMotion {
 	axis?: 'x' | 'y' | 'z'
-	enabled?: boolean
 	amplitude?: number
 	speed?: number
 }
 
 export interface SpinMotion {
-	enabled?: boolean
 	axis?: 'x' | 'y' | 'z'
 	speed?: number
 }
 
 export interface MotionConfig {
-	float?: false | FloatMotion
-	spin?: false | SpinMotion
-	reducedMotion?: 'system' | 'always' | 'never'
+	float?: FloatMotion
+	spin?: SpinMotion
 }
 
 export function validateMotion(motion: MotionConfig | undefined): void {
@@ -64,8 +61,8 @@ export function advanceMotion(
 	validateMotion(config)
 	const float = config?.float || undefined
 	const spin = config?.spin || undefined
-	const floatActive = permitted && !!float && float.enabled !== false
-	const spinActive = permitted && !!spin && spin.enabled !== false
+	const floatActive = permitted && !!float
+	const spinActive = permitted && !!spin
 	const axis = spin?.axis ?? 'y'
 	const floatAxis = float?.axis ?? 'y'
 	return {
