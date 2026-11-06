@@ -108,6 +108,7 @@ export interface RootSnapshot {
 	readonly path: OccurrencePath
 	readonly nodeType: string
 	readonly localMatrix: readonly number[]
+	readonly matrixAutoUpdate: boolean
 	readonly parentMatrix: readonly number[]
 	readonly modelMatrix: readonly number[]
 }
@@ -251,6 +252,7 @@ export function prepareConstructionUnits(
 				path: Object.freeze([...path]),
 				nodeType: node.type,
 				localMatrix: Object.freeze([...node.matrix.elements]),
+				matrixAutoUpdate: node.matrixAutoUpdate,
 				modelMatrix: Object.freeze([...node.matrixWorld.elements]),
 				parentMatrix: Object.freeze([
 					...(node.parent?.matrixWorld.elements ?? new Matrix4().elements),

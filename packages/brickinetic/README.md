@@ -137,3 +137,9 @@ Use `effect={{ type: 'assembly', playback: { duration: 3, direction: 'forward', 
 Automatic playback under reduced motion shows the assembled pose (assembly 1, explosion 0) without repetition. Manual explosion seeking remains spatial, and manual assembly seeking retains reveal stages with translation removed. Allowing motion again restarts automatic playback.
 
 For manual rendering, initialize the consumer Canvas with `frameloop='never'`. In the supported R3F release, switching an actively scheduled demand Canvas to manual mode can deliver a queued RAF timestamp as a seconds delta; coordinate such transitions in the consumer. Brickinetic does not override the Canvas scheduler.
+
+### Seeded variation
+
+Both effects accept `randomness` in [0, 1] (default 0) and `seed`, an unsigned 32-bit integer (default 0). Variation is deterministic per occurrence and seed, including arbitrary forward/reverse seeking. Explosion varies travel and rotation magnitude by at most ±50% × randomness without reversing radial travel. Its optional `rotation` is a nonnegative finite angle in radians (default 0), applied around each unit’s bounds center. The rotation axis is radial direction crossed with fixed up, with a stable orthogonal fallback; an origin-coincident unit stays still.
+
+Assembly keeps strict spatial order and nonoverlapping entrances. Randomness varies positive stage-duration weights `1 + randomness × (u - 0.5)` and normalizes them to the total playback duration. It never shuffles pieces. Effects restore immutable baseline matrices, including nested nonuniform/mirrored parent transforms; rotations temporarily retain exact matrices where converting to position/rotation/scale would lose shear. These are visual effects without collision avoidance or physically valid assembly-instruction guarantees.

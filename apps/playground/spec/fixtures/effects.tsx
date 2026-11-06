@@ -17,6 +17,7 @@ interface Settings {
 interface Harness {
 	configure: (settings: Partial<Settings>) => void
 	advance: (delta: number) => void
+	pose: () => number[][]
 	progress: number
 	frames: number
 	ready: boolean
@@ -29,6 +30,7 @@ declare global {
 const harness: Harness = {
 	configure() {},
 	advance() {},
+	pose: () => [],
 	progress: -1,
 	frames: 0,
 	ready: false,
@@ -40,6 +42,11 @@ const report = (progress: number) => {
 function Probe() {
 	const state = useThree()
 	useLayoutEffect(() => {
+		harness.pose = () => {
+			const matrices: number[][] = []
+			state.scene.traverse((node) => matrices.push(node.matrix.toArray()))
+			return matrices
+		}
 		harness.ready = true
 		harness.advance = (delta) =>
 			state.advance(state.clock.elapsedTime + delta, true)
