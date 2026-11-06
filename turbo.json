@@ -3,22 +3,24 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**", ".compiled/**"]
+			"outputs": ["dist/**"]
 		},
 		"typecheck": {
-			"dependsOn": ["build"],
 			"cache": false
 		},
-		"test": {
-			"dependsOn": ["build"]
-		},
+		"test": {},
 		"smoke:node": {
 			"dependsOn": ["build"]
 		},
 		"dev": {
 			"cache": false,
 			"persistent": true,
-			"interruptible": true
+			"interruptible": true,
+			"dependsOn": ["^build"]
+		},
+		"test:browser": {
+			"dependsOn": ["^build"],
+			"cache": false
 		}
 	}
 }

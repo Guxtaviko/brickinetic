@@ -221,18 +221,10 @@ export function disposeModel(model: Group) {
 	for (const texture of textures) texture.dispose()
 }
 
-export interface LoaderTimings {
-	transportMs?: number
-	materialsMs?: number
-	parseMs?: number
-}
-
 export async function loadUnpreparedModel(
 	src: string,
 	partsLibraryPath: string,
-	timings?: LoaderTimings,
 ): Promise<Group> {
-	const transportStarted = performance.now()
 	let response: Response
 	try {
 		response = await fetch(src)
@@ -256,7 +248,6 @@ export async function loadUnpreparedModel(
 			`Cannot read LDraw model "${src}": ${asError(error).message}`,
 		)
 	}
-	if (timings) timings.transportMs = performance.now() - transportStarted
 
 	if (
 		/text\/html/i.test(contentType) ||
@@ -274,7 +265,6 @@ export async function loadUnpreparedModel(
 	const dependencyFailures = observeDependencies(loader)
 	loader.setConditionalLineMaterial(LDrawConditionalLineMaterial)
 	loader.addDefaultMaterials()
-	const materialsStarted = performance.now()
 	try {
 		await loader.preloadMaterials(colorConfigUrl)
 	} catch (error) {
@@ -282,10 +272,8 @@ export async function loadUnpreparedModel(
 			`Cannot load the bundled LDraw color configuration for "${src}": ${asError(error).message}`,
 		)
 	}
-	if (timings) timings.materialsMs = performance.now() - materialsStarted
 
 	let model: Group
-	const parseStarted = performance.now()
 	try {
 		model = await new Promise<Group>((resolve, reject) => {
 			loader.parse(text, resolve, reject)
@@ -301,7 +289,6 @@ export async function loadUnpreparedModel(
 			)
 		throw new Error(`Cannot parse LDraw model "${src}": ${message}`)
 	}
-	if (timings) timings.parseMs = performance.now() - parseStarted
 
 	const failure = dependencyFailures.entries().next().value
 	if (failure) {

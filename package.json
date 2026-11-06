@@ -7,13 +7,15 @@
 		"build": "turbo run build",
 		"typecheck": "turbo run typecheck",
 		"test": "turbo run test",
-		"smoke:node": "turbo run smoke:node",
+		"smoke:node": "turbo run smoke:node --filter brickinetic",
 		"format": "biome format --write .",
 		"lint": "biome lint . --error-on-warnings",
-		"check": "biome check . --error-on-warnings"
+		"check": "biome check . --error-on-warnings",
+		"test:browser": "turbo run test:browser"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.4",
+		"tsx": "4.23.15",
 		"turbo": "^2.8.17"
 	},
 	"engines": {

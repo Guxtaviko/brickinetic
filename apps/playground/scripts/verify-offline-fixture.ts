@@ -6,7 +6,7 @@ import { LDrawConditionalLineMaterial } from 'three/addons/materials/LDrawCondit
 
 const modelPath = resolve(
 	import.meta.dirname,
-	'../../../../packages/brickinetic/spec/fixtures/car-self-contained.mpd',
+	'../../../packages/brickinetic/spec/fixtures/car-self-contained.mpd',
 )
 const source = await readFile(modelPath, 'utf8')
 const externalRequests: string[] = []

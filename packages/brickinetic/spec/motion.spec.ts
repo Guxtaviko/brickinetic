@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { MotionConfig } from '../dist/index.js'
+import type { MotionConfig } from '../src/index.js'
 
 const { advanceMotion, initialMotionState, motionPose, validateMotion } =
-	(await import(
-		new URL('../../dist/motion.js', import.meta.url).href
-	)) as typeof import('../dist/motion.js')
+	await import('../src/motion.js')
 
 test('validates motion numbers with field-specific errors', () => {
 	validateMotion({

@@ -3,7 +3,15 @@
 	"compilerOptions": {
 		"rootDir": ".",
 		"noEmit": true,
-		"types": ["node"]
+		"types": ["node"],
+		"allowJs": true,
+		"checkJs": true
 	},
-	"include": ["src/**/*.ts", "src/**/*.tsx", "spec/**/*.ts", "scripts/**/*.ts"]
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.tsx",
+		"spec/**/*.ts",
+		"scripts/**/*.ts",
+		"scripts/**/*.mjs"
+	]
 }

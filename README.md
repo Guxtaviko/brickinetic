@@ -4,13 +4,18 @@ A TypeScript React Three Fiber component for loading LDraw MPD models with autom
 
 ## Workspace
 
-Use Node.js 22.12 or later. The library initializes the Three.js module before R3F to preserve Node 22.12 import compatibility. Scripts and behavioral specs are checked with strict TypeScript and compiled to ignored `.compiled/` directories before execution.
+Use Node.js 22.12 or later. The library initializes the Three.js module before R3F to preserve Node 22.12 import compatibility. Behavioral specs run directly from TypeScript source with Node’s test runner and tsx. Type checking uses noEmit and does not depend on product builds.
 
 - `pnpm install` installs workspace dependencies.
 - `pnpm dev` starts the playground.
 - `pnpm format` formats maintained files with the shared Biome configuration.
 - `pnpm check` verifies formatting, import organization, and lint rules; `pnpm lint` runs lint rules alone.
-- `pnpm build`, `pnpm typecheck`, and `pnpm test` run workspace tasks through Turborepo.
+- `pnpm typecheck` checks all maintained source, configuration and specs without compiling product output.
+- `pnpm test` runs source behavioral specs through `node:test` and tsx, without an application build.
+- `pnpm test:browser` runs Playwright Test specs under `apps/playground/spec` with a managed Vite server and an explicit library build. Install Chromium with `pnpm --filter @brickinetic/playground exec playwright install chromium`.
+- `pnpm build` produces library ESM, declarations/assets and the static application.
+- `pnpm smoke:node` builds the library and verifies its built public import in plain Node, without a TypeScript loader.
+- The historical foundation benchmark and its production entry have been retired; browser specs validate correctness, not hardware performance.
 
 See [packages/brickinetic/README.md](packages/brickinetic/README.md) for the component API.
 

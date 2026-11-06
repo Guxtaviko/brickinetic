@@ -15,10 +15,9 @@
 	},
 	"scripts": {
 		"typecheck": "tsc -p tsconfig.json",
-		"build": "tsc -p tsconfig.build.json && pnpm build:scripts && node .compiled/scripts/copy-assets.js",
-		"test": "node --test --test-concurrency=1 .compiled/spec/*.spec.js",
-		"smoke:node": "node .compiled/scripts/smoke-node-import.js",
-		"build:scripts": "tsc -p tsconfig.scripts.json"
+		"build": "tsc -p tsconfig.build.json && tsx scripts/copy-assets.ts",
+		"test": "node --import tsx --test --test-concurrency=1 spec/*.spec.ts",
+		"smoke:node": "node scripts/smoke-node-import.mjs"
 	},
 	"peerDependencies": {
 		"@react-three/fiber": ">=9 <10",

@@ -18,22 +18,18 @@ const {
 	readModel,
 	retainModel,
 	RESOURCE_EVICTION_DELAY_MS,
-} = (await import(
-	new URL('../../dist/model-resource.js', import.meta.url).href
-)) as typeof import('../dist/model-resource.js')
-const { setEdgeVisibility } = (await import(
-	new URL('../../dist/model-view.js', import.meta.url).href
-)) as typeof import('../dist/model-view.js')
-const { applyBrickEffect, restoreBrickEffects } = (await import(
-	new URL('../../dist/brick-effects.js', import.meta.url).href
-)) as typeof import('../dist/brick-effects.js')
+} = await import('../src/model-resource.js')
+const { setEdgeVisibility } = await import('../src/model-view.js')
+const { applyBrickEffect, restoreBrickEffects } = await import(
+	'../src/brick-effects.js'
+)
 
 const fixture = await readFile(
-	new URL('../../spec/fixtures/car-self-contained.mpd', import.meta.url),
+	new URL('./fixtures/car-self-contained.mpd', import.meta.url),
 	'utf8',
 )
 const colors = await readFile(
-	new URL('../../assets/LDConfig.ldr', import.meta.url),
+	new URL('../assets/LDConfig.ldr', import.meta.url),
 	'utf8',
 )
 

@@ -29,3 +29,7 @@ dist-ssr
 /.agents/
 
 .compiled/
+
+/test-results/
+/apps/playground/test-results/
+/apps/playground/playwright-report/

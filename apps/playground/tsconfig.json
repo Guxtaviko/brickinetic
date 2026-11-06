@@ -9,9 +9,6 @@
 		},
 		{
 			"path": "./tsconfig.scripts.json"
-		},
-		{
-			"path": "./tsconfig.browser-scripts.json"
 		}
 	]
 }

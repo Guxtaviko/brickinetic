@@ -14,12 +14,10 @@ const {
 	retainModel,
 	normalizePartsLibraryPath,
 	DEFAULT_PARTS_LIBRARY_PATH,
-} = (await import(
-	new URL('../../dist/model-resource.js', import.meta.url).href
-)) as typeof import('../dist/model-resource.js')
+} = await import('../src/model-resource.js')
 
 const colors = await readFile(
-	new URL('../../assets/LDConfig.ldr', import.meta.url),
+	new URL('../assets/LDConfig.ldr', import.meta.url),
 	'utf8',
 )
 const triangle = '0 Triangle\n0 !LDRAW_ORG Part\n3 16 0 0 0 10 0 0 0 10 0\n'
@@ -235,7 +233,7 @@ test('loads the embedded construction ownership fixture without geometry request
 	const src = 'https://models.test/construction-ownership.mpd'
 	const secondSrc = 'https://models.test/construction-ownership-reload.mpd'
 	const fixture = await readFile(
-		new URL('../../spec/fixtures/construction-ownership.mpd', import.meta.url),
+		new URL('./fixtures/construction-ownership.mpd', import.meta.url),
 		'utf8',
 	)
 	await withFetch(
@@ -263,7 +261,7 @@ test('loads the embedded construction ownership fixture without geometry request
 test('loads the standalone construction fixture without geometry requests', async () => {
 	const src = 'https://models.test/construction-standalone.ldr'
 	const fixture = await readFile(
-		new URL('../../spec/fixtures/construction-standalone.ldr', import.meta.url),
+		new URL('./fixtures/construction-standalone.ldr', import.meta.url),
 		'utf8',
 	)
 	await withFetch(
@@ -356,7 +354,7 @@ test('shares prepared metadata per effective library and binds clones independen
 test('observes explicit, empty and nested loader steps and recursive clone metadata', async () => {
 	const src = 'https://models.test/construction-steps.mpd'
 	const fixture = await readFile(
-		new URL('../../spec/fixtures/construction-steps.mpd', import.meta.url),
+		new URL('./fixtures/construction-steps.mpd', import.meta.url),
 		'utf8',
 	)
 	await withFetch(

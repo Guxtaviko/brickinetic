@@ -2,16 +2,14 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const { readModel } = (await import(
-	new URL('../../dist/model-resource.js', import.meta.url).href
-)) as typeof import('../dist/model-resource.js')
+const { readModel } = await import('../src/model-resource.js')
 
 const fixture = await readFile(
-	new URL('../../spec/fixtures/car-self-contained.mpd', import.meta.url),
+	new URL('./fixtures/car-self-contained.mpd', import.meta.url),
 	'utf8',
 )
 const colors = await readFile(
-	new URL('../../assets/LDConfig.ldr', import.meta.url),
+	new URL('../assets/LDConfig.ldr', import.meta.url),
 	'utf8',
 )
 

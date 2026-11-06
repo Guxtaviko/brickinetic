@@ -4,7 +4,10 @@ import type {
 	ExplosionConfig,
 } from '../src/index.js'
 
-declare const controller: BrickEffectController
+const controller: BrickEffectController = {
+	setProgress() {},
+	getProgress: () => 0,
+}
 type ControllerHasNoPublicBind = 'bind' extends keyof BrickEffectController
 	? never
 	: true

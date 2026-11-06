@@ -9,9 +9,9 @@ import {
 	Vector3,
 } from 'three'
 
-const { getCenterOffset, LDrawOrientation, setEdgeVisibility } = (await import(
-	new URL('../../dist/model-view.js', import.meta.url).href
-)) as typeof import('../dist/model-view.js')
+const { getCenterOffset, LDrawOrientation, setEdgeVisibility } = await import(
+	'../src/model-view.js'
+)
 
 test('uses identity center offset by default and centers the oriented bounds when requested', () => {
 	const model = new Group()

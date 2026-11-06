@@ -5,18 +5,14 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"typecheck": "tsc -b --pretty false && node .compiled/scripts/prepare-browser-scripts.js",
-		"build": "tsc -b && node .compiled/scripts/prepare-browser-scripts.js && vite build",
+		"typecheck": "tsc -b --pretty false",
+		"build": "vite build",
+		"test:browser": "playwright test",
 		"lint": "biome lint .",
 		"format": "biome format --write .",
 		"check": "biome check .",
 		"preview": "vite preview",
-		"build:scripts": "tsc -p tsconfig.scripts.json && tsc -p tsconfig.browser-scripts.json && node .compiled/scripts/prepare-browser-scripts.js",
-		"verify:offline": "node .compiled/scripts/verify-offline-fixture.js",
-		"verify:foundation": "node .compiled/scripts/verify-foundation.js",
-		"measure:foundation": "node .compiled/scripts/measure-foundation.js",
-		"cycle:foundation": "node .compiled/scripts/cycle-foundation.js",
-		"summarize:foundation": "node .compiled/scripts/summarize-foundation.js"
+		"verify:offline": "tsx scripts/verify-offline-fixture.ts"
 	},
 	"dependencies": {
 		"@react-three/fiber": "catalog:",
@@ -26,13 +22,13 @@
 		"three": "catalog:"
 	},
 	"devDependencies": {
+		"@playwright/test": "1.64.1",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^22.20.5",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
 		"@types/three": "catalog:",
 		"@vitejs/plugin-react": "catalog:",
-		"playwright": "^1.64.1",
 		"tailwindcss": "^4.3.3",
 		"typescript": "catalog:",
 		"vite": "catalog:"
