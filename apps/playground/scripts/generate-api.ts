@@ -31,6 +31,8 @@ for (const [file, name] of declarations) {
 }
 markdown +=
 	'## BrickEffectEasing\n\n`linear`, `smoothstep`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, or a readonly cubic tuple `[x1, y1, x2, y2]`. All coordinates must be finite; X coordinates are in [0, 1].\n'
+markdown +=
+	'\n## Easing utilities\n\n`validateEasing(value)` validates/narrows a curve. `evaluateEasing(easing, progress)` evaluates the bounded curve for preview/tooling; finite progress is clamped and nonfinite progress throws.\n'
 await mkdir('content/docs', { recursive: true })
 await writeFile('content/docs/api.mdx', markdown)
 console.log('Generated public TypeScript API tables.')

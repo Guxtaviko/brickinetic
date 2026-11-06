@@ -7,7 +7,11 @@ export {
 	createBrickEffectController,
 	type ExplosionConfig,
 } from './brick-effects.js'
-export { type BrickEffectEasing, validateEasing } from './easing.js'
+export {
+	type BrickEffectEasing,
+	evaluateEasing,
+	validateEasing,
+} from './easing.js'
 export type { FloatMotion, MotionConfig, SpinMotion } from './motion.js'
 
 export type { EffectPlaybackConfig } from './playback.js'

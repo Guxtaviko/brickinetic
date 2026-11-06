@@ -39,6 +39,7 @@ export function evaluateEasing(
 	progress: number,
 ): number {
 	validateEasing(easing)
+	if (!Number.isFinite(progress)) throw new Error('progress must be finite')
 	if (progress <= 0) return 0
 	if (progress >= 1) return 1
 	if (easing === 'linear') return progress

@@ -36,3 +36,8 @@ test('invalid easing names and tuple coordinates fail with field context', () =>
 	])
 		assert.throws(() => validateEasing(curve), /easing/)
 })
+
+test('the public easing evaluator rejects nonfinite progress', () => {
+	for (const value of [NaN, Infinity, -Infinity])
+		assert.throws(() => evaluateEasing('linear', value), /progress/)
+})
