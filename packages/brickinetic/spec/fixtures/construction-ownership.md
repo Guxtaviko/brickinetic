@@ -6,15 +6,15 @@ available under CC0-1.0. They contain no external geometry dependencies.
 Expected ownership follows the construction-unit policy, not a physical brick
 count:
 
-| Occurrence | Expected unit |
-| --- | --- |
-| Root direct face and two edges | One residual unit |
-| Two root references to part.dat | Two distinct part units |
-| Part in submodel.ldr | One part unit |
-| Part in shortcut.dat | One part unit |
-| unknown.ldr direct face | One residual unit |
-| Part in unknown.ldr | One part unit |
-| nested.dat under each part.dat | Owned by its containing part unit |
+| Occurrence                       | Expected unit                               |
+| -------------------------------- | ------------------------------------------- |
+| Root direct face and two edges   | One residual unit                           |
+| Two root references to part.dat  | Two distinct part units                     |
+| Part in submodel.ldr             | One part unit                               |
+| Part in shortcut.dat             | One part unit                               |
+| unknown.ldr direct face          | One residual unit                           |
+| Part in unknown.ldr              | One part unit                               |
+| nested.dat under each part.dat   | Owned by its containing part unit           |
 | construction-standalone.ldr root | One part unit, including its face and edges |
 
 The fixture has seven expected units: five part occurrences and two residual

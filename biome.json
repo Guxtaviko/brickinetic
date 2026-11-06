@@ -27,7 +27,6 @@
 			"!**/dist",
 			"!**/dist-ssr",
 			"!**/node_modules",
-			"!**/spec/fixtures",
 			"!apps/playground/public/models"
 		]
 	}

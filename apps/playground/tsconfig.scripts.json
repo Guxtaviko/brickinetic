@@ -9,7 +9,16 @@
 		"types": ["node"],
 		"noEmit": true,
 		"lib": ["ES2023", "DOM"],
-		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scripts.tsbuildinfo"
+		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scripts.tsbuildinfo",
+		"jsx": "react-jsx",
+		"paths": {
+			"brickinetic": ["../../packages/brickinetic/src/index.ts"]
+		}
 	},
-	"include": ["scripts/**/*.ts", "spec/**/*.ts", "playwright.config.ts"]
+	"include": [
+		"scripts/**/*.ts",
+		"spec/**/*.ts",
+		"playwright.config.ts",
+		"spec/**/*.tsx"
+	]
 }

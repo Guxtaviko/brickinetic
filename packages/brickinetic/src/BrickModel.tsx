@@ -19,6 +19,7 @@ import {
 	restoreBrickEffects,
 	validateEffectConfig,
 } from './brick-effects.js'
+import { EffectPlayback } from './EffectPlayback.js'
 import {
 	cloneModel,
 	getConstructionBindings,
@@ -152,29 +153,44 @@ export function BrickModel({
 	useLayoutEffect(() => setEdgeVisibility(model, edges), [model, edges])
 	const construction = getConstructionBindings(model)
 	const invalidate = useThree((root) => root.invalidate)
-	useLayoutEffect(() => {
-		if (!construction || !effect) return
-		const config = effect
-		const update = (progress: number) => {
+	const updateEffect = useCallback(
+		(progress: number) => {
+			if (!construction || !effect) return
 			applyBrickEffect(
 				construction.units,
 				construction.prepared,
 				progress,
-				config,
+				effect,
 				effect.type === 'assembly' && !permitted,
 				effect.type,
 				edges,
 			)
-			invalidate()
-		}
-		const unbind = bindBrickEffect(config, update)
+			if (!effect.playback) invalidate()
+		},
+		[construction, effect, permitted, edges, invalidate],
+	)
+	useLayoutEffect(() => {
+		if (!construction || !effect || effect.playback) return
+		return bindBrickEffect(effect, updateEffect)
+	}, [construction, effect, updateEffect])
+	const effectType = effect?.type
+	useLayoutEffect(() => {
+		if (!effectType) return
 		return () => {
-			unbind()
-			restoreBrickEffects(construction.units)
+			if (construction) restoreBrickEffects(construction.units)
 			setEdgeVisibility(model, edges)
 			invalidate()
 		}
-	}, [construction, effect, permitted, invalidate, model, edges])
+	}, [construction, model, edges, invalidate, effectType])
+	const playbackKey = effect?.playback
+		? JSON.stringify([
+				effect.type,
+				effect.playback.duration ?? 3,
+				effect.playback.direction ?? 'forward',
+				effect.playback.repeat ?? false,
+				effect.playback.hold ?? 0,
+			])
+		: ''
 	const active = permitted && requested
 	useLayoutEffect(() => {
 		if (!active) {
@@ -192,6 +208,15 @@ export function BrickModel({
 					</group>
 				</group>
 			</group>
+			{effect?.playback && (
+				<EffectPlayback
+					key={playbackKey + src + partsLibraryPath}
+					config={effect.playback}
+					permitted={permitted}
+					assembled={effect.type === 'assembly' ? 1 : 0}
+					apply={updateEffect}
+				/>
+			)}
 			{active && motion && (
 				<MotionDriver config={motion} floatRef={floatRef} spinRef={spinRef} />
 			)}

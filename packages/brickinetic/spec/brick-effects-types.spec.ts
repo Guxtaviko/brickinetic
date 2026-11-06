@@ -52,3 +52,16 @@ const conflictingDistance: ExplosionConfig = {
 	distanceMultiplier: 2,
 }
 void conflictingDistance
+
+// @ts-expect-error Playback and numeric progress cannot own one effect together.
+const conflictingPlayback: ExplosionConfig = {
+	type: 'explosion',
+	progress: 0,
+	playback: {},
+}
+void conflictingPlayback
+const autoAssembly: AssemblyConfig = {
+	type: 'assembly',
+	playback: { direction: 'alternate', repeat: true },
+}
+void autoAssembly

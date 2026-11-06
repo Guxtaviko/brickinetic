@@ -5,10 +5,12 @@ import {
 	evaluateEasing,
 	validateEasing,
 } from './easing.js'
+import { type EffectPlaybackConfig, validatePlayback } from './playback.js'
 
 export type EffectProgress =
-	| { progress: number; controller?: never }
-	| { progress?: never; controller: BrickEffectController }
+	| { progress: number; controller?: never; playback?: never }
+	| { progress?: never; controller: BrickEffectController; playback?: never }
+	| { progress?: never; controller?: never; playback: EffectPlaybackConfig }
 
 export interface BrickEffectController {
 	setProgress(value: number): void
@@ -79,9 +81,19 @@ export function validateEffectConfig(config?: BrickEffectConfig) {
 	if (!config) return 0
 	if (config.type !== 'assembly' && config.type !== 'explosion')
 		throw new Error('effect.type must be assembly or explosion')
-	if ((config.progress === undefined) === (config.controller === undefined))
-		throw new Error('Configure exactly one of progress or controller')
+	if (
+		[config.progress, config.controller, config.playback].filter(
+			(value) => value !== undefined,
+		).length !== 1
+	)
+		throw new Error(
+			'Configure exactly one of progress or controller or playback',
+		)
 	validateEasing(config.easing ?? 'linear')
+	if (config.playback) {
+		validatePlayback(config.playback)
+		return config.playback.direction === 'reverse' ? 1 : 0
+	}
 	return (
 		config.controller?.getProgress() ??
 		normalizeProgress(config.progress as number)

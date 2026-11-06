@@ -9,3 +9,5 @@ export {
 } from './brick-effects.js'
 export { type BrickEffectEasing, validateEasing } from './easing.js'
 export type { FloatMotion, MotionConfig, SpinMotion } from './motion.js'
+
+export type { EffectPlaybackConfig } from './playback.js'

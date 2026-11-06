@@ -45,8 +45,7 @@ const Sample = () => (
 
 Use exactly one effect prop and provide exactly one progress source. Numeric
 progress is finite and clamped to `[0, 1]`; NaN and infinities throw. Both
-effects are deterministic under forward and reverse seeking and do not create
-a playback clock.
+effects are deterministic under forward and reverse seeking. Optional playback supplies an internal effect clock.
 
 ```tsx
 import { BrickModel, createBrickEffectController } from 'brickinetic'
@@ -128,3 +127,13 @@ The upstream resolver probes multiple directories, so a 404 for one candidate ca
 The supported Three.js range is deliberately limited to r186. A small compatibility adapter observes its dependency cache because this version can otherwise omit failed nested parts. Recheck that adapter before expanding the peer range. OMR demo sources and attribution are documented in the playground; part files retain their own license notices.
 
 Easing is shared by both construction effects: `linear` (default), `smoothstep`, CSS-standard `ease`, `ease-in`, `ease-out`, `ease-in-out`, or a readonly cubic tuple `[x1, y1, x2, y2]`. Coordinates must be finite and X coordinates must be in [0, 1]; Y may overshoot, but evaluated construction progress is clamped. Endpoints are exact. Easing changes per-piece assembly entrance and explosion displacement, without changing ambient float/spin. `BrickEffectEasing` and `BrickEffectConfig` are exported. Explosion `distance` and `distanceMultiplier` are exclusive at both type and runtime levels.
+
+### Effect playback
+
+Use `effect={{ type: 'assembly', playback: { duration: 3, direction: 'forward', repeat: true, hold: 1 } }}` for automatic playback. `playback` is exclusive with `progress` and `controller`. Defaults are three seconds per leg, forward, once, no hold and unpaused. Duration must be positive and finite; hold must be finite and nonnegative. Reverse starts at 1 and ends at 0. Alternate completes 0→1→0, holding at the turnaround; repeated alternate holds both endpoints. Repeated forward/reverse holds at the destination before resetting. Completed playback retains its final pose.
+
+`paused` freezes motion and remaining hold. `onProgress` optionally reports actual normalized progress; store it in a ref when observing frames. Playback starts after loading and excludes hidden-tab time. Changing source, effect type, driver, duration, direction, repeat or hold restarts playback; visual parameters and pause preserve progress. Remount the effect/model to replay; its source cache is reused. Demand mode requests frames while moving and one wake during a hold, then sleeps when paused/complete. Manual `frameloop='never'` stays consumer-advanced. Timers, visibility and preference listeners are cleaned up on unmount.
+
+Automatic playback under reduced motion shows the assembled pose (assembly 1, explosion 0) without repetition. Manual explosion seeking remains spatial, and manual assembly seeking retains reveal stages with translation removed. Allowing motion again restarts automatic playback.
+
+For manual rendering, initialize the consumer Canvas with `frameloop='never'`. In the supported R3F release, switching an actively scheduled demand Canvas to manual mode can deliver a queued RAF timestamp as a seconds delta; coordinate such transitions in the consumer. Brickinetic does not override the Canvas scheduler.
