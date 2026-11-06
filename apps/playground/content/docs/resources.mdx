@@ -1,0 +1,30 @@
+---
+title: Loading and resources
+description: Parts libraries, cache isolation, errors and retries.
+---
+
+## Model and dependency loading
+
+`src` points to an LDraw `.ldr` or `.mpd` resource. Three.js LDrawLoader resolves embedded files before external parts, including supported OMR backslash references. Brickinetic does not implement a custom parser. Geometry units are prepared from supported loader structures; unsupported renderables, missing/nonfinite bounds, or singular transforms fail with source and occurrence context.
+
+## Hosted parts and CORS
+
+`partsLibraryPath` overrides the parts library. The default is the pinned third-party mirror:
+
+```text
+https://raw.githubusercontent.com/kulits/ldraw-parts/f3d0c2256398c28fbb682f4bb08c59eed81fd4f1/ldraw/
+```
+
+Pinning stabilizes content, not host availability. Models and all recursively referenced parts/primitives need network access and browser-compatible CORS headers. The official LDraw endpoint does not currently provide the needed browser CORS access, and tested jsDelivr Spaceship parts return 403. For offline use, host a complete parts library yourself or supply a self-contained MPD. LDraw color configuration is bundled with the library.
+
+## Cache and resource lifetime
+
+Cache keys include model source and the normalized effective library path. Concurrent consumers share immutable geometry/materials/textures and prepared source metadata, with independently cloned scene nodes and effect poses. Each mounted consumer retains its resources; cleanup is deferred briefly to survive StrictMode replay. Resources are disposed when unused. Replay remounts reuse a retained cache entry; separate library paths remain isolated.
+
+## Errors and retry
+
+Network/HTTP failures, HTML responses, empty/nonrenderable models, parse errors and unresolved nested dependencies produce informative errors with source and dependency context. Failed cache entries are evicted, so repair the resource and reset/remount your error boundary to retry. Brickinetic suspends while loading; the consumer owns its loading UI and error boundary. The playground exposes an explicit Retry model action.
+
+## Demonstration assets
+
+The Car, Speedboat and Spaceship models and their provenance/license information remain under the site's public models directory. They are demonstration assets, not library runtime assets. See [model provenance](/models/README.md) before redistributing them. Browser checks use software rendering and establish correctness only; they do not establish hardware-GPU performance.

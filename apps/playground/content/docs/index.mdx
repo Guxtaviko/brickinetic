@@ -1,0 +1,26 @@
+---
+title: Getting started
+description: Render your first LDraw model inside a scene you own.
+---
+
+Brickinetic is a TypeScript library for rendering and animating LDraw models with React Three Fiber.
+
+## Install
+
+```sh
+pnpm add brickinetic react react-dom three @react-three/fiber
+```
+
+Supported peers are React and React DOM `>=19 <19.4`, React Three Fiber `>=9 <10`, and Three.js `>=0.186 <0.187`. The LDraw compatibility adapter depends on r186 internals. The built ESM library can be imported in plain Node 22.12 or later without browser globals; rendering needs a browser with WebGL. This documentation site's tooling requires Node 22.22 or later.
+
+## Own your Canvas
+
+import { QuickstartExample } from '../../src/site/example'
+
+<QuickstartExample />
+
+You choose the camera, lights, transforms, controls and render loop. Put BrickModel inside a React Suspense boundary to show loading feedback and an error boundary to present failures and retry. `center` defaults to false; `edges` defaults to true. Position, rotation and scale remain consumer-owned outer transforms. Rotation and effect angles use radians.
+
+## Continue
+
+[Explore effects](/docs/effects), [drive a controller](/docs/controllers), or [learn how resources load](/docs/resources). The [playground](/playground) uses the same public API. [API tables](/docs/api) are generated from source types.

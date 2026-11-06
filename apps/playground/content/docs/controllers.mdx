@@ -1,0 +1,33 @@
+---
+title: Controllers and render loops
+description: Drive effects from an external timeline or your own frame callback.
+---
+
+## Imperative progress
+
+```tsx
+import { useMemo } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { BrickModel, createBrickEffectController } from 'brickinetic'
+
+export function DrivenModel() {
+  const controller = useMemo(() => createBrickEffectController(0), [])
+  useFrame(({ clock }) => {
+    controller.setProgress((Math.sin(clock.elapsedTime) + 1) / 2)
+  })
+  return <BrickModel src='/models/car.mpd' center
+    effect={{ type: 'explosion', controller }} />
+}
+```
+
+Render this component inside the consumer Canvas. A controller retains its latest valid progress before binding and after unmount. `setProgress` validates synchronously; `getProgress` returns the clamped value. Each controller can bind to one mounted effect at a time; concurrent binding throws. Give independent models independent controllers. Removal releases the subscriber without disposing the controller.
+
+## Demand and manual rendering
+
+Automatic playback invalidates while moving, schedules one timer during a hold, and sleeps while paused or complete. Numeric/controller visual updates request a demand frame. Float/spin sustain demand frames only while active at nonzero speed.
+
+The library never calls consumer `advance`. For manual rendering, initialize `<Canvas frameloop='never'>` and advance from the consumer using seconds. In the supported R3F release, changing an actively scheduled demand Canvas to never can deliver an already-queued RAF timestamp as a seconds delta. Coordinate dynamic loop transitions in the consumer.
+
+## Compose and clean up
+
+Centering uses assembled bounds, independent of effect progress. Consumer transforms remain outside effect, float and spin groups. Edges track the current setting through assembly reveal and effect removal. Unmounting releases effect bindings and preference/visibility subscriptions without disturbing another instance or shared model resources.

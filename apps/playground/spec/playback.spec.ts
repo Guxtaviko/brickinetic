@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 	await page.route('**/models/*.mpd', (route) =>
 		route.fulfill({ contentType: 'text/plain', body: fixture }),
 	)
-	await page.goto('/spec/fixtures/effects.html')
+	await page.goto('http://127.0.0.1:4185/effects.html')
 	await expect
 		.poll(() => page.evaluate(() => window.effectHarness.ready))
 		.toBe(true)
@@ -54,7 +54,7 @@ test('demand holds sleep, paused playback freezes and completion stops frames', 
 test('manual frames stay consumer advanced and visual edits preserve progress', async ({
 	page,
 }) => {
-	await page.goto('/spec/fixtures/effects.html?loop=never')
+	await page.goto('http://127.0.0.1:4185/effects.html?loop=never')
 	await expect
 		.poll(() => page.evaluate(() => window.effectHarness.ready))
 		.toBe(true)

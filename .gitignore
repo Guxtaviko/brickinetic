@@ -33,3 +33,7 @@ dist-ssr
 /test-results/
 /apps/playground/test-results/
 /apps/playground/playwright-report/
+
+/apps/playground/.react-router/
+/apps/playground/.source/
+/apps/playground/content/docs/api.mdx

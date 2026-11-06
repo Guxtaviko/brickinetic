@@ -1,0 +1,57 @@
+---
+title: Effects and motion
+description: Choose one construction effect and one source of progress.
+---
+
+## One effect, one driver
+
+```tsx
+<BrickModel src='/models/car.mpd' center
+  effect={{ type: 'explosion', progress: 0.6, distanceMultiplier: 1 }} />
+```
+
+`effect` is a discriminated union of assembly and explosion. Provide exactly one of `progress`, `controller`, or `playback`; conflicting or missing drivers fail descriptively. Numeric/controller progress is clamped to [0, 1] and must be finite. No effect is applied when omitted.
+
+## Assembly
+
+Assembly orders pieces by their baseline bounds-center coordinate, ascending Y by default. `axis` accepts X, Y or Z; `direction` accepts ascending or descending. Equal coordinates use stable numeric occurrence paths. This is visual ordering, not physically valid building instructions.
+
+Entrances default to instant reveal with zero offset. A translated entrance uses `entrance: 'translate'` and an oriented model-local `offset` tuple. Future pieces stay hidden; only the current piece enters, and a new piece is hidden at its exact stage boundary. The fully assembled pose is progress 1.
+
+## Explosion
+
+Explosion moves pieces away from an `origin` (assembled bounds center by default). `distance` specifies a nonnegative finite LDraw-unit distance. Alternatively, `distanceMultiplier` scales half the longest assembled bounds dimension; the default multiplier is 1. The two distance fields are exclusive. Empty bounds yield zero displacement. A piece coincident with the origin stays still.
+
+Optional `rotation` is a nonnegative finite angle in radians, default 0, around the piece center. It uses a stable radial-cross-up axis with an orthogonal fallback. All source orientations and scales are retained, including nested nonuniform and mirrored parents. Effects restore their immutable baseline when removed.
+
+## Easing and variation
+
+`easing` defaults to linear. Use smoothstep, CSS-standard ease/ease-in/ease-out/ease-in-out, or a readonly cubic tuple `[x1, y1, x2, y2]`. Coordinates are finite; X is in [0, 1]. Y can overshoot, but evaluated construction values are clamped and endpoints are exact. Assembly eases each piece entrance; explosion eases displacement and rotation. Perpetual float/spin are unchanged.
+
+`randomness` is in [0, 1], default 0. `seed` is a uint32 integer, default 0. Explosion travel/rotation vary by at most ±50% × randomness without inward flips. Assembly varies positive duration weights `1 + randomness × (u - 0.5)` while preserving strict order and no overlap. Arbitrary forward/reverse seeks are repeatable. There is no collision avoidance or physical-instruction guarantee.
+
+## Playback
+
+```tsx
+<BrickModel src='/models/car.mpd'
+  effect={{ type: 'assembly', playback: {
+    duration: 3, direction: 'alternate', repeat: true, hold: 1,
+  } }} />
+```
+
+Defaults: three seconds per leg, forward, once, hold 0, unpaused. Duration must be positive/finite; hold is nonnegative/finite. Reverse runs 1→0; alternate completes 0→1→0. Repeat holds at destinations before resetting; alternate holds both endpoints. Completed playback keeps its final pose. Pause freezes motion and the remaining hold.
+
+Playback begins after loading, excludes hidden-tab time, and cleans its visibility listeners and timers. Source, effect type, driver, duration, direction, repeat and hold changes restart. Pause and visual parameters preserve progress. Remount BrickModel to replay; cached source resources are reused. `onProgress` reports actual normalized progress; store it in a ref to avoid React updates on every frame.
+
+## Ambient motion
+
+```tsx
+<BrickModel src='/models/car.mpd' center
+  motion={{ spin: { axis: 'y', speed: 0.1 } }} />
+```
+
+Optional float/spin objects enable their presets; omission disables them. Float defaults to Y, amplitude 0.15 local units and speed 0.8 rad/s. Spin defaults to Y and speed 0.1 rad/s. All axes are supported; finite negative speeds reverse, zero holds phase. Float amplitude must be nonnegative/finite. Speed changes preserve phase; axis changes and reenabling restart that preset. Effects compose beneath ambient motion and consumer transforms.
+
+## Reduced motion
+
+Top-level `reducedMotion` defaults to system, with live preference updates. Always forces reduction; never permits motion. Without a preference API, system permits motion. Automatic playback shows the assembled pose and does not repeat; permitting motion again restarts playback. Manual explosion seeking remains spatial. Manual assembly seeking keeps reveal stages and removes translation. Ambient float/spin return to identity while reduced. All preference subscriptions are cleaned up.

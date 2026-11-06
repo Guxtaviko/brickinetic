@@ -11,7 +11,7 @@ test('seeded rotation seeks repeatably in the browser and replay reuses its sour
 			body: '0 FILE test.ldr\n0 Test\n4 4 10 20 30 20 20 30 20 30 30 10 30 30\n',
 		})
 	})
-	await page.goto('/spec/fixtures/effects.html?loop=never')
+	await page.goto('http://127.0.0.1:4185/effects.html?loop=never')
 	await expect
 		.poll(() => page.evaluate(() => window.effectHarness.ready))
 		.toBe(true)

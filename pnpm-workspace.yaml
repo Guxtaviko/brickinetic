@@ -15,3 +15,6 @@ catalog:
 
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - fumadocs-core@16.18.1
+  - fumadocs-ui@16.18.1

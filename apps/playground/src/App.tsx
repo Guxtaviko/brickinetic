@@ -765,7 +765,7 @@ export default function App() {
   ${effect === 'explosion' ? `effect={{ type: 'explosion', ${controllerSource ? 'controller' : `progress: ${effectProgress}`}, ${relativeDistance ? `distanceMultiplier: ${explosionMultiplier}` : `distance: ${explosionDistance}`} }}` : effect === 'assembly' ? `effect={{ type: 'assembly', ${controllerSource ? 'controller' : `progress: ${effectProgress}`}, entrance: 'translate', offset: [0, 28, 0], easing: 'smoothstep' }}` : ''} />`}</code>
 				</pre>
 				<pre className='m-0 overflow-x-auto font-mono text-xs leading-6'>
-					<code>{`import { useFrame } from '@react-three/fiber'\nimport { BrickModel, createBrickEffectController } from 'brickinetic'\n\nconst controller = createBrickEffectController()\n\n// Inside a component within your Canvas:\nuseFrame((_, delta) => {\n  controller.setProgress(controller.getProgress() + delta * 0.1)\n})\n\n<BrickModel src="${src}" explosion={{ controller }} />`}</code>
+					<code>{`import { useFrame } from '@react-three/fiber'\nimport { BrickModel, createBrickEffectController } from 'brickinetic'\n\nconst controller = createBrickEffectController()\n\n// Inside a component within your Canvas:\nuseFrame((_, delta) => {\n  controller.setProgress(controller.getProgress() + delta * 0.1)\n})\n\n<BrickModel src="${src}" effect={{ type: 'explosion', controller }} />`}</code>
 				</pre>
 				<p className='m-0 text-xs leading-6 text-slate-400'>
 					Use inside your Canvas and Suspense boundary. Missing parts reach your

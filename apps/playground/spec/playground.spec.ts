@@ -9,7 +9,7 @@ test('axes persist, effects seek, reduced motion and models remain inspectable',
 	await page.route('**/models/*.mpd', (route) =>
 		route.fulfill({ contentType: 'text/plain', body: fixture }),
 	)
-	await page.goto('/')
+	await page.goto('/playground')
 	const ready = () =>
 		expect(page.getByTestId('model-status')).toContainText('Model ready')
 	await ready()
@@ -41,7 +41,7 @@ test('axes persist, effects seek, reduced motion and models remain inspectable',
 test('each real demonstration model loads without an error', async ({
 	page,
 }) => {
-	await page.goto('/')
+	await page.goto('/playground')
 	for (const model of ['car', 'speedboat', 'spaceship']) {
 		await page.getByLabel('Model', { exact: true }).selectOption(model)
 		await expect(page.getByTestId('model-status')).toContainText(
@@ -67,7 +67,7 @@ test('a missing part reports its name and retry recovers after repair', async ({
 	await page.route('**/deliberately-missing.dat', (route) =>
 		route.fulfill({ status: 404, body: 'missing' }),
 	)
-	await page.goto('/')
+	await page.goto('/playground')
 	await expect(page.getByRole('alert')).toContainText(
 		'deliberately-missing.dat',
 	)

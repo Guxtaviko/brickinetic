@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@source "../../../node_modules/fumadocs-ui/dist/**/*.js";
+@custom-variant dark (&:is(.dark *));
 
 @theme {
 	--font-heading: Georgia, Cambria, "Times New Roman", serif;
@@ -6,115 +10,141 @@
 }
 
 :root {
-	@apply bg-slate-200 font-body text-slate-900;
-	font-synthesis: none;
+	--color-fd-primary: #c52e28;
+	--color-fd-primary-foreground: #fff;
 }
-
-* {
-	@apply box-border;
+.dark {
+	--color-fd-primary: #ff827a;
+	--color-fd-primary-foreground: #23100f;
 }
-
-body {
-	@apply m-0;
-}
-
-button,
-input,
-select {
-	@apply font-[inherit];
-}
-
-button,
-select,
-input[type="checkbox"] {
-	@apply cursor-pointer;
-}
-
-button {
-	@apply border-0 bg-slate-900 px-4 py-3 text-white;
-}
-
-button:hover {
-	@apply bg-red-700;
-}
-
-:focus-visible {
-	@apply outline-2 outline-offset-2 outline-red-700;
-}
-
-main {
-	@apply mx-auto max-w-7xl px-4 pb-6;
-}
-
-@media (min-width: 40rem) {
-	main {
-		@apply px-8;
+@scope (.playground) {
+	:root {
+		@apply bg-slate-200 font-body text-slate-900;
+		font-synthesis: none;
 	}
-}
 
-@media (min-width: 64rem) {
+	* {
+		@apply box-border;
+	}
+
+	body {
+		@apply m-0;
+	}
+
+	button,
+	input,
+	select {
+		@apply font-[inherit];
+	}
+
+	button,
+	select,
+	input[type="checkbox"] {
+		@apply cursor-pointer;
+	}
+
+	button {
+		@apply border-0 bg-slate-900 px-4 py-3 text-white;
+	}
+
+	button:hover {
+		@apply bg-red-700;
+	}
+
+	:focus-visible {
+		@apply outline-2 outline-offset-2 outline-red-700;
+	}
+
 	main {
-		@apply px-16;
+		@apply mx-auto max-w-7xl px-4 pb-6;
+	}
+
+	@media (min-width: 40rem) {
+		main {
+			@apply px-8;
+		}
+	}
+
+	@media (min-width: 64rem) {
+		main {
+			@apply px-16;
+		}
+
+		h1 {
+			@apply text-7xl;
+		}
+	}
+
+	a {
+		@apply text-inherit;
 	}
 
 	h1 {
-		@apply text-7xl;
+		@apply m-0 font-heading text-5xl leading-none font-normal tracking-tight;
 	}
-}
 
-a {
-	@apply text-inherit;
-}
+	h1 em {
+		@apply text-red-700;
+	}
 
-h1 {
-	@apply m-0 font-heading text-5xl leading-none font-normal tracking-tight;
-}
-
-h1 em {
-	@apply text-red-700;
-}
-
-.viewer-heading,
-.model-status {
-	@apply pointer-events-none absolute bottom-3 left-3 flex max-w-full items-center gap-2 border border-slate-300 bg-slate-50/95 px-2.5 py-2 font-mono text-xs;
-}
-
-.axis-preview-toggle {
-	@apply inline-flex cursor-pointer items-center gap-2 border border-slate-300 bg-slate-50/90 px-2 py-1 font-mono text-xs text-slate-600;
-}
-
-h2 {
-	@apply m-0 font-heading text-2xl font-normal;
-}
-
-.control-section:last-child {
-	@apply mb-0 border-b-0;
-}
-
-legend {
-	@apply mb-3 p-0 font-mono text-xs font-bold tracking-wide;
-}
-
-select {
-	@apply max-w-full rounded-none border border-slate-400 bg-slate-50 p-2 font-mono text-xs text-slate-900;
-}
-
-.toggle,
-input[type="checkbox"] {
-	@apply size-4 accent-red-700;
-}
-
-.api-example footer {
-	@apply flex justify-between gap-4 pt-5 font-mono text-xs tracking-wider text-slate-500;
-}
-
-.load-error {
-	@apply absolute inset-0 z-10 flex flex-col items-start justify-center overflow-y-auto bg-slate-100 p-4 sm:p-8 lg:p-12;
-}
-
-@media (max-width: 760px) {
 	.viewer-heading,
-	footer {
-		@apply flex-col text-xs;
+	.model-status {
+		@apply pointer-events-none absolute bottom-3 left-3 flex max-w-full items-center gap-2 border border-slate-300 bg-slate-50/95 px-2.5 py-2 font-mono text-xs;
 	}
+
+	.axis-preview-toggle {
+		@apply inline-flex cursor-pointer items-center gap-2 border border-slate-300 bg-slate-50/90 px-2 py-1 font-mono text-xs text-slate-600;
+	}
+
+	h2 {
+		@apply m-0 font-heading text-2xl font-normal;
+	}
+
+	.control-section:last-child {
+		@apply mb-0 border-b-0;
+	}
+
+	legend {
+		@apply mb-3 p-0 font-mono text-xs font-bold tracking-wide;
+	}
+
+	select {
+		@apply max-w-full rounded-none border border-slate-400 bg-slate-50 p-2 font-mono text-xs text-slate-900;
+	}
+
+	.toggle,
+	input[type="checkbox"] {
+		@apply size-4 accent-red-700;
+	}
+
+	.api-example footer {
+		@apply flex justify-between gap-4 pt-5 font-mono text-xs tracking-wider text-slate-500;
+	}
+
+	.load-error {
+		@apply absolute inset-0 z-10 flex flex-col items-start justify-center overflow-y-auto bg-slate-100 p-4 sm:p-8 lg:p-12;
+	}
+
+	@media (max-width: 760px) {
+		.viewer-heading,
+		footer {
+			@apply flex-col text-xs;
+		}
+	}
+}
+
+.home-preview .playground main {
+	@apply max-w-none p-0;
+}
+.home-preview .playground main > header,
+.home-preview .playground main > section,
+.home-preview .playground main > footer,
+.home-preview .playground main > div > aside {
+	@apply hidden;
+}
+.home-preview .playground main > div {
+	@apply block h-[28rem] border-0 shadow-none;
+}
+.home-preview .playground main > div > section {
+	@apply h-full;
 }
