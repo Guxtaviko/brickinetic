@@ -9,3 +9,5 @@ Run `pnpm dev` from the workspace root. API tables are generated from TypeScript
 `pnpm test:browser` builds products and manages three test servers: the real site, a spec-only Vite fixture server for behavioral rendering, and the static production preview. The fixture pages are not production routes or artifacts. Browser tests cover real demo models, error/retry, effects, lifecycle, deep links and static search. Chromium software rendering establishes correctness, not hardware performance.
 
 Demo models and provenance/license files stay under `public/models`; spec fixtures stay under `spec/fixtures`. Do not redistribute demo models as library assets.
+
+The playground starts with the car, automatic three-second assembly, three-second endpoint hold, repeat enabled, spin enabled and float omitted. Automatic controls expose duration, direction, repeat, hold, pause and replay; Manual exposes seeking and captures the latest actual automatic progress without jumping. One serializable configuration supplies the viewport and the highlighted, copyable TypeScript scene. Custom easing opens the accessible controlled Bézier editor; invalid drafts retain the last valid curve.

@@ -5,146 +5,80 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-	--font-heading: Georgia, Cambria, "Times New Roman", serif;
-	--font-body: "Trebuchet MS", Verdana, sans-serif;
+	--font-sans: "Geist Variable", ui-sans-serif, sans-serif;
+	--font-heading: "Geist Variable", ui-sans-serif, sans-serif;
+	--font-body: "Geist Variable", ui-sans-serif, sans-serif;
+	--color-viewer: var(--viewer-background);
+	--color-axis-x: var(--axis-x);
+	--color-axis-y: var(--axis-y);
+	--color-axis-z: var(--axis-z);
 }
-
 :root {
+	--color-fd-muted-foreground: #686868;
 	--color-fd-primary: #c52e28;
-	--color-fd-primary-foreground: #fff;
+	--color-fd-primary-foreground: #ffffff;
+	--viewer-background: #f5f5f5;
+	--axis-x: #b4372f;
+	--axis-y: #21713b;
+	--axis-z: #265ac5;
+	color-scheme: light;
+	font-synthesis: none;
 }
 .dark {
+	--color-fd-muted-foreground: #a3a3a3;
 	--color-fd-primary: #ff827a;
 	--color-fd-primary-foreground: #23100f;
+	--viewer-background: #18181b;
+	--axis-x: #ff928a;
+	--axis-y: #74d891;
+	--axis-z: #86b3ff;
+	color-scheme: dark;
 }
-@scope (.playground) {
-	:root {
-		@apply bg-slate-200 font-body text-slate-900;
-		font-synthesis: none;
-	}
-
-	* {
-		@apply box-border;
-	}
-
-	body {
-		@apply m-0;
-	}
-
-	button,
-	input,
-	select {
-		@apply font-[inherit];
-	}
-
-	button,
-	select,
-	input[type="checkbox"] {
-		@apply cursor-pointer;
-	}
-
-	button {
-		@apply border-0 bg-slate-900 px-4 py-3 text-white;
-	}
-
-	button:hover {
-		@apply bg-red-700;
-	}
-
-	:focus-visible {
-		@apply outline-2 outline-offset-2 outline-red-700;
-	}
-
-	main {
-		@apply mx-auto max-w-7xl px-4 pb-6;
-	}
-
-	@media (min-width: 40rem) {
-		main {
-			@apply px-8;
-		}
-	}
-
-	@media (min-width: 64rem) {
-		main {
-			@apply px-16;
-		}
-
-		h1 {
-			@apply text-7xl;
-		}
-	}
-
-	a {
-		@apply text-inherit;
-	}
-
-	h1 {
-		@apply m-0 font-heading text-5xl leading-none font-normal tracking-tight;
-	}
-
-	h1 em {
-		@apply text-red-700;
-	}
-
-	.viewer-heading,
-	.model-status {
-		@apply pointer-events-none absolute bottom-3 left-3 flex max-w-full items-center gap-2 border border-slate-300 bg-slate-50/95 px-2.5 py-2 font-mono text-xs;
-	}
-
-	.axis-preview-toggle {
-		@apply inline-flex cursor-pointer items-center gap-2 border border-slate-300 bg-slate-50/90 px-2 py-1 font-mono text-xs text-slate-600;
-	}
-
-	h2 {
-		@apply m-0 font-heading text-2xl font-normal;
-	}
-
-	.control-section:last-child {
-		@apply mb-0 border-b-0;
-	}
-
-	legend {
-		@apply mb-3 p-0 font-mono text-xs font-bold tracking-wide;
-	}
-
-	select {
-		@apply max-w-full rounded-none border border-slate-400 bg-slate-50 p-2 font-mono text-xs text-slate-900;
-	}
-
-	.toggle,
-	input[type="checkbox"] {
-		@apply size-4 accent-red-700;
-	}
-
-	.api-example footer {
-		@apply flex justify-between gap-4 pt-5 font-mono text-xs tracking-wider text-slate-500;
-	}
-
-	.load-error {
-		@apply absolute inset-0 z-10 flex flex-col items-start justify-center overflow-y-auto bg-slate-100 p-4 sm:p-8 lg:p-12;
-	}
-
-	@media (max-width: 760px) {
-		.viewer-heading,
-		footer {
-			@apply flex-col text-xs;
-		}
+:focus-visible {
+	outline: 2px solid var(--color-fd-ring);
+	outline-offset: 3px;
+}
+::selection {
+	background: var(--color-fd-primary);
+	color: var(--color-fd-primary-foreground);
+}
+.ui-button {
+	@apply inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border bg-fd-background px-3 py-2 text-sm font-medium select-none touch-manipulation disabled:cursor-default disabled:opacity-50;
+}
+.control-field {
+	@apply flex min-w-0 flex-col gap-2 text-sm;
+}
+.control-input {
+	@apply min-h-10 w-full min-w-0 rounded-md border bg-fd-background px-3 py-2 text-base sm:text-sm;
+	caret-color: var(--color-fd-primary);
+}
+.control-toggle {
+	@apply flex min-h-9 cursor-pointer items-center justify-between gap-3 text-sm;
+}
+.control-range {
+	@apply block h-5 w-full cursor-pointer accent-fd-primary;
+}
+.control-group {
+	@apply m-0 min-w-0 space-y-4 border-0 border-b pb-6 last:border-b-0;
+}
+.controls-scroll {
+	overscroll-behavior-y: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-fd-border) transparent;
+	scrollbar-gutter: stable;
+}
+@media (hover: hover) and (pointer: fine) {
+	.ui-button:hover {
+		@apply bg-fd-accent;
 	}
 }
-
-.home-preview .playground main {
-	@apply max-w-none p-0;
-}
-.home-preview .playground main > header,
-.home-preview .playground main > section,
-.home-preview .playground main > footer,
-.home-preview .playground main > div > aside {
-	@apply hidden;
-}
-.home-preview .playground main > div {
-	@apply block h-[28rem] border-0 shadow-none;
-}
-.home-preview .playground main > div > section {
-	@apply h-full;
+@media (hover: hover) and (pointer: fine) and (
+		prefers-reduced-motion: no-preference
+	) {
+	.ui-button {
+		transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+	}
+	.ui-button:active:not(:focus-visible) {
+		transform: scale(0.98);
+	}
 }

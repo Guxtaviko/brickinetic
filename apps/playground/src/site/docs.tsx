@@ -10,6 +10,15 @@ import { useParams } from 'react-router'
 import { layoutOptions } from './shared'
 import { source } from './source'
 
+export function meta({
+	params,
+}: {
+	params: Record<string, string | undefined>
+}) {
+	const page = source.getPage((params['*'] ?? '').split('/').filter(Boolean))
+	return [{ title: `${page?.data.title ?? 'Page not found'} · Brickinetic` }]
+}
+
 export default function Documentation() {
 	const params = useParams()
 	const page = source.getPage((params['*'] ?? '').split('/').filter(Boolean))

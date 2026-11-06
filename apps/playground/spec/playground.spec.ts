@@ -22,6 +22,7 @@ test('axes persist, effects seek, reduced motion and models remain inspectable',
 	await ready()
 	await expect(axes).not.toBeChecked()
 	await page.getByLabel('Construction effect').selectOption('explosion')
+	await page.getByRole('radio', { name: 'Manual', exact: true }).check()
 	await page.getByLabel('Distance multiplier', { exact: true }).fill('2')
 	await page
 		.getByRole('slider', { name: 'Effect progress', exact: true })

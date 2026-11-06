@@ -1,7 +1,8 @@
 import { type ComponentType, useEffect, useState } from 'react'
+import type { AppProps } from '../App'
 
-export function ClientPlayground() {
-	const [Playground, setPlayground] = useState<ComponentType>()
+export function ClientPlayground({ compact = false }: AppProps) {
+	const [Playground, setPlayground] = useState<ComponentType<AppProps>>()
 	useEffect(() => {
 		let active = true
 		void import('../App').then((module) => {
@@ -13,7 +14,7 @@ export function ClientPlayground() {
 	}, [])
 	return Playground ? (
 		<div className='playground'>
-			<Playground />
+			<Playground compact={compact} />
 		</div>
 	) : (
 		<div

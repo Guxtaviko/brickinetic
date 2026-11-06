@@ -243,7 +243,7 @@ export function BezierEditor({ value, onChange }: BezierEditorProps) {
 							value={drafts[index]}
 							aria-invalid={!!error}
 							aria-describedby={error ? `${id}-error` : undefined}
-							className='mt-1 w-full min-w-0 rounded-md border bg-fd-background px-2 py-2 font-mono text-sm'
+							className='mt-1 w-full min-w-0 rounded-md border bg-fd-background px-2 py-2 font-mono text-base sm:text-sm'
 							onChange={(event) => edit(index, event.currentTarget.value)}
 							onBlur={() => {
 								if (!error) setDrafts(value.map(String))

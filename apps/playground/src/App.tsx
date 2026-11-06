@@ -1,589 +1,450 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import type { BrickEffectEasing } from 'brickinetic'
+import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock'
+import { useTheme } from 'fumadocs-ui/provider/base'
 import {
-	type AssemblyConfig,
-	type BrickEffectController,
-	BrickModel,
-	type BrickModelProps,
-	createBrickEffectController,
-	type ExplosionConfig,
-	type MotionConfig,
-} from 'brickinetic'
-import {
-	Component,
-	type ReactNode,
-	Suspense,
 	useCallback,
+	useDeferredValue,
 	useEffect,
-	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from 'react'
-import { Box3, type Group, PerspectiveCamera, Sphere, Vector3 } from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import '@/styles/globals.css'
+import { type BezierCurve, BezierEditor } from './components/BezierEditor'
+import {
+	AxisSelect,
+	ControlGroup,
+	NumberField,
+	Slider,
+	Toggle,
+} from './components/Controls'
+import { ModelViewport } from './components/ModelViewport'
+import {
+	createModelConfig,
+	defaultSettings,
+	formatModelCode,
+	models,
+	type PlaygroundSettings,
+} from './playground-config'
 
-const models = [
-	{
-		id: 'car',
-		label: 'Car',
-		complexity: 'Minimal',
-		set: '1477',
-		title: 'Red Devil Racer',
-	},
-	{
-		id: 'speedboat',
-		label: 'Speedboat',
-		complexity: 'Medium',
-		set: '31039',
-		title: 'Speedboat',
-	},
-	{
-		id: 'spaceship',
-		label: 'Spaceship',
-		complexity: 'Complex',
-		set: '70816',
-		title: 'Benny’s Spaceship',
-	},
+export interface AppProps {
+	compact?: boolean
+}
+const customDefault: BezierCurve = [0.25, 0.1, 0.25, 1]
+const easingNames = [
+	'linear',
+	'smoothstep',
+	'ease',
+	'ease-in',
+	'ease-out',
+	'ease-in-out',
 ] as const
 
-type Axis = 'x' | 'y' | 'z'
-
-class ModelErrorBoundary extends Component<
-	{
-		children: ReactNode
-		retry: () => void
-		onError: (message: string) => void
-	},
-	{ error: Error | null }
-> {
-	state: { error: Error | null } = { error: null }
-	static getDerivedStateFromError(error: Error) {
-		return { error }
-	}
-	componentDidCatch(error: Error) {
-		this.props.onError(error.message)
-	}
-	render() {
-		if (this.state.error)
-			return (
-				<div className='load-error' role='alert'>
-					<span className='mb-2 text-xs font-mono font-bold tracking-wider text-red-700'>
-						LOAD INTERRUPTED
-					</span>
-					<h2>Model unavailable</h2>
-					<p className='my-4 font-mono text-xs leading-6 [overflow-wrap:anywhere]'>
-						{this.state.error.message}
-					</p>
-					<button onClick={this.props.retry} type='button'>
-						Retry model
-					</button>
-				</div>
-			)
-		return this.props.children
-	}
-}
-
-function Loading({ onPending }: { onPending: () => void }) {
-	useEffect(onPending, [onPending])
-	return null
-}
-
-function ModelScene({
-	src,
-	center,
-	edges,
-	xyzPreview,
-	motion,
-	reducedMotion,
-	explosion,
-	assembly,
-	effectController,
-	driveEffect,
-	positionX,
-	rotationY,
-	scale,
-	onReady,
-}: {
-	src: string
-	center: boolean
-	edges: boolean
-	xyzPreview: boolean
-	motion: MotionConfig
-	reducedMotion: BrickModelProps['reducedMotion']
-	explosion?: ExplosionConfig
-	assembly?: AssemblyConfig
-	effectController: BrickEffectController
-	driveEffect: boolean
-	positionX: number
-	rotationY: number
-	scale: number
-	onReady: () => void
-}) {
-	const primary = useRef<Group>(null)
-	const { camera, gl, invalidate, size } = useThree()
-	const controlsRef = useRef<OrbitControls | null>(null)
-	const [guideSize, setGuideSize] = useState(30)
-	const effectPhase = useRef(0)
-	useFrame((_, delta) => {
-		if (!driveEffect) return
-		effectPhase.current = (effectPhase.current + delta * 0.25) % 1
-		effectController.setProgress(effectPhase.current)
-	})
-	useLayoutEffect(() => {
-		const controls = new OrbitControls(camera, gl.domElement)
-		controlsRef.current = controls
-		controls.enablePan = false
-		const change = () => invalidate()
-		controls.addEventListener('change', change)
-		return () => {
-			controls.removeEventListener('change', change)
-			controls.dispose()
-			controlsRef.current = null
-		}
-	}, [camera, gl, invalidate])
-	useFrame(() => controlsRef.current?.update())
-	useLayoutEffect(() => {
-		const controls = controlsRef.current
-		if (!controls || !primary.current || !(camera instanceof PerspectiveCamera))
-			return
-		const bounds = new Box3().setFromObject(primary.current)
-		const sphere = bounds.getBoundingSphere(new Sphere())
-		const radius = Math.max(sphere.radius, 1)
-		const vertical = (camera.fov * Math.PI) / 360
-		const horizontal = Math.atan(Math.tan(vertical) * camera.aspect)
-		const distance = (radius / Math.sin(Math.min(vertical, horizontal))) * 1.2
-		camera.position
-			.copy(sphere.center)
-			.add(new Vector3(1, 0.65, 1.3).normalize().multiplyScalar(distance))
-		camera.near = Math.max(radius / 1000, 0.01)
-		camera.far = distance + radius * 30
-		camera.updateProjectionMatrix()
-		controls.target.copy(sphere.center)
-		controls.minDistance = radius * 0.25
-		controls.maxDistance = distance * 5
-		controls.update()
-		setGuideSize((sphere.radius * 0.75) / scale)
-		invalidate()
-		onReady()
-		// Transform sliders intentionally do not reset a user's orbit on every edit.
-	}, [src, center, camera, invalidate, onReady, size.width, size.height])
-	const rotation: [number, number, number] = [0, (rotationY * Math.PI) / 180, 0]
-	return (
-		<>
-			<group ref={primary} name='inspection-primary'>
-				<BrickModel
-					src={src}
-					center={center}
-					edges={edges}
-					motion={motion}
-					reducedMotion={reducedMotion}
-					effect={explosion ?? assembly}
-					position={[positionX, 0, 0]}
-					rotation={rotation}
-					scale={scale}
-				/>
-			</group>
-			{xyzPreview && (
-				<group
-					name='xyz-preview'
-					position={[positionX, 0, 0]}
-					rotation={rotation}
-					scale={scale}
-				>
-					<axesHelper args={[guideSize]} />
-				</group>
-			)}
-		</>
+export default function App({ compact = false }: AppProps) {
+	const [settings, setSettings] = useState<PlaygroundSettings>(() => ({
+		...defaultSettings,
+	}))
+	const [xyzPreview, setXyzPreview] = useState(true)
+	const [replay, setReplay] = useState(0)
+	const [copied, setCopied] = useState('')
+	const actualProgress = useRef(0)
+	const progressOutput = useRef<HTMLOutputElement>(null)
+	const { resolvedTheme } = useTheme()
+	const [background, setBackground] = useState(() =>
+		getComputedStyle(document.documentElement)
+			.getPropertyValue('--viewer-background')
+			.trim(),
 	)
-}
-
-function Slider({
-	label,
-	value,
-	min,
-	max,
-	step = 1,
-	unit = '',
-	onChange,
-}: {
-	label: string
-	value: number
-	min: number
-	max: number
-	step?: number
-	unit?: string
-	onChange: (value: number) => void
-}) {
-	return (
-		<label className='my-3 block font-mono text-xs'>
-			<span className='mb-2 flex justify-between gap-2'>
-				{label}
-				<output className='font-bold text-red-700'>
-					{value.toFixed(step < 1 ? 2 : 0)}
-					{unit}
-				</output>
-			</span>
-			<input
-				aria-label={label}
-				className='block w-full cursor-ew-resize accent-red-700'
-				type='range'
-				min={min}
-				max={max}
-				step={step}
-				value={value}
-				onChange={(e) => onChange(Number(e.target.value))}
-			/>
-		</label>
-	)
-}
-
-function Toggle({
-	label,
-	checked,
-	onChange,
-}: {
-	label: string
-	checked: boolean
-	onChange: (checked: boolean) => void
-}) {
-	return (
-		<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs cursor-pointer'>
-			<span>{label}</span>
-			<input
-				type='checkbox'
-				checked={checked}
-				onChange={(e) => onChange(e.target.checked)}
-			/>
-		</label>
-	)
-}
-
-function AxisSelect({
-	label,
-	value,
-	onChange,
-}: {
-	label: string
-	value: Axis
-	onChange: (value: Axis) => void
-}) {
-	return (
-		<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
-			<span>{label}</span>
+	useEffect(() => {
+		setBackground(
+			getComputedStyle(document.documentElement)
+				.getPropertyValue('--viewer-background')
+				.trim(),
+		)
+	}, [resolvedTheme])
+	const update = useCallback(function update<
+		K extends keyof PlaygroundSettings,
+	>(key: K, value: PlaygroundSettings[K]) {
+		setSettings((previous) => ({ ...previous, [key]: value }))
+	}, [])
+	const reportProgress = useCallback((progress: number) => {
+		actualProgress.current = progress
+		if (progressOutput.current)
+			progressOutput.current.textContent = `${Math.round(progress * 100)}%`
+	}, [])
+	const config = useMemo(() => createModelConfig(settings), [settings])
+	const code = useMemo(() => formatModelCode(config), [config])
+	const deferredCode = useDeferredValue(code)
+	const changeMode = (mode: PlaygroundSettings['mode']) => {
+		setSettings((previous) => ({
+			...previous,
+			mode,
+			paused: false,
+			progress: mode === 'manual' ? actualProgress.current : previous.progress,
+		}))
+	}
+	const replayEffect = () => {
+		update('paused', false)
+		setReplay((value) => value + 1)
+	}
+	const customCurve =
+		typeof settings.easing === 'string' ? customDefault : settings.easing
+	const modelControl = (
+		<label className='control-field'>
+			Model
 			<select
-				aria-label={label}
-				value={value}
-				onChange={(e) => onChange(e.target.value as Axis)}
+				className='control-input'
+				aria-label='Model'
+				value={settings.modelId}
+				onChange={(event) => update('modelId', event.currentTarget.value)}
 			>
-				{(['x', 'y', 'z'] as const).map((axis) => (
-					<option key={axis} value={axis}>
-						{axis.toUpperCase()}
+				{models.map((model) => (
+					<option key={model.id} value={model.id}>
+						{model.label}
 					</option>
 				))}
 			</select>
 		</label>
 	)
-}
-
-export default function App() {
-	const [modelId, setModelId] = useState<string>('car')
-	const model = models.find((item) => item.id === modelId) ?? models[0]
-	const src = `/models/${model.id}.mpd`
-	const [attempt, setAttempt] = useState(0)
-	const [status, setStatus] = useState('Loading model and parts')
-	const [center, setCenter] = useState(true)
-	const [edges, setEdges] = useState(true)
-	const [xyzPreview, setXyzPreview] = useState(true)
-	const [effect, setEffect] = useState<'none' | 'explosion' | 'assembly'>(
-		'none',
+	const effectControl = (
+		<label className='control-field'>
+			Effect
+			<select
+				className='control-input'
+				aria-label='Construction effect'
+				value={settings.effectType}
+				onChange={(event) =>
+					update(
+						'effectType',
+						event.currentTarget.value as PlaygroundSettings['effectType'],
+					)
+				}
+			>
+				<option value='assembly'>Assembly</option>
+				<option value='explosion'>Explosion</option>
+				<option value='none'>None</option>
+			</select>
+		</label>
 	)
-	const [effectProgress, setEffectProgress] = useState(0)
-	const [relativeDistance, setRelativeDistance] = useState(true)
-	const [explosionDistance, setExplosionDistance] = useState(24)
-	const [explosionMultiplier, setExplosionMultiplier] = useState(1)
-	const [controllerSource, setControllerSource] = useState(false)
-	const [driveEffect, setDriveEffect] = useState(false)
-	const effectController = useMemo(() => createBrickEffectController(), [])
-	const explosion = useMemo<ExplosionConfig | undefined>(
-		() =>
-			effect === 'explosion'
-				? controllerSource
-					? {
-							type: 'explosion',
-							controller: effectController,
-							...(relativeDistance
-								? { distanceMultiplier: explosionMultiplier }
-								: { distance: explosionDistance }),
-						}
-					: {
-							type: 'explosion',
-							progress: effectProgress,
-							...(relativeDistance
-								? { distanceMultiplier: explosionMultiplier }
-								: { distance: explosionDistance }),
-						}
-				: undefined,
-		[
-			effect,
-			controllerSource,
-			effectController,
-			effectProgress,
-			relativeDistance,
-			explosionMultiplier,
-			explosionDistance,
-		],
+	const playbackButtons = settings.effectType !== 'none' && (
+		<div className='flex flex-wrap items-center gap-2'>
+			<button
+				className='ui-button'
+				type='button'
+				onClick={() => update('paused', !settings.paused)}
+			>
+				{settings.paused ? 'Resume effect' : 'Pause effect'}
+			</button>
+			<button className='ui-button' type='button' onClick={replayEffect}>
+				Replay
+			</button>
+			<output
+				aria-label='Current effect progress'
+				aria-live='off'
+				ref={progressOutput}
+				className='ml-auto w-12 text-right font-mono text-xs tabular-nums'
+			>
+				0%
+			</output>
+		</div>
 	)
-	const assembly = useMemo<AssemblyConfig | undefined>(
-		() =>
-			effect === 'assembly'
-				? controllerSource
-					? {
-							type: 'assembly',
-							controller: effectController,
-							entrance: 'translate',
-							offset: [0, 28, 0],
-							easing: 'smoothstep',
-						}
-					: {
-							type: 'assembly',
-							progress: effectProgress,
-							entrance: 'translate',
-							offset: [0, 28, 0],
-							easing: 'smoothstep',
-						}
-				: undefined,
-		[effect, controllerSource, effectController, effectProgress],
+	const viewport = (
+		<ModelViewport
+			config={config}
+			xyzPreview={xyzPreview}
+			onAxesChange={setXyzPreview}
+			replay={replay}
+			background={background}
+			onProgress={reportProgress}
+			compact={compact}
+		/>
 	)
-	useEffect(
-		() => effectController.setProgress(effectProgress),
-		[effectController, effectProgress],
-	)
-	const [floatEnabled, setFloatEnabled] = useState(true)
-	const [spinEnabled, setSpinEnabled] = useState(true)
-	const [floatAxis, setFloatAxis] = useState<Axis>('y')
-	const [spinAxis, setSpinAxis] = useState<Axis>('y')
-	const [amplitude, setAmplitude] = useState(5)
-	const [floatSpeed, setFloatSpeed] = useState(0.8)
-	const [spinSpeed, setSpinSpeed] = useState(0.1)
-	const [reducedMotion, setReducedMotion] =
-		useState<BrickModelProps['reducedMotion']>('system')
-	const [positionX, setPositionX] = useState(0)
-	const [rotationY, setRotationY] = useState(0)
-	const [scale, setScale] = useState(1)
-	const motion = useMemo<MotionConfig>(
-		() => ({
-			float: floatEnabled
-				? {
-						axis: floatAxis,
-						amplitude,
-						speed: floatSpeed,
-					}
-				: undefined,
-			spin: spinEnabled ? { axis: spinAxis, speed: spinSpeed } : undefined,
-		}),
-		[
-			floatEnabled,
-			floatAxis,
-			amplitude,
-			floatSpeed,
-			spinEnabled,
-			spinAxis,
-			spinSpeed,
-			reducedMotion,
-		],
-	)
-	const pending = useCallback(() => {
-		setStatus('Loading model and parts')
-	}, [])
-	const ready = useCallback(() => {
-		setStatus('Model ready')
-	}, [])
-	const failed = useCallback(() => {
-		setStatus('Load failed')
-	}, [])
-	const retry = () => {
-		pending()
-		setAttempt((value) => value + 1)
-	}
-
-	return (
-		<main>
-			<header className='flex min-h-16 items-center justify-between border-b border-slate-900/20 font-mono text-xs font-bold tracking-wider'>
-				<a
-					href='/'
-					aria-label='Brickinetic home'
-					className='flex items-center gap-3 no-underline'
-				>
-					<b className='grid size-8 place-items-center bg-red-700 text-lg text-white'>
-						B
-					</b>{' '}
-					BRICKINETIC
-				</a>
-				<span className='text-slate-500 max-[760px]:hidden'>
-					LDRAW / REACT THREE FIBER
-				</span>
-			</header>
-			<section className='flex items-end justify-between gap-8 py-8 pb-6 max-[760px]:block max-[760px]:pt-6'>
-				<div>
-					<p className='mb-2 text-xs font-mono font-bold tracking-wider text-red-700'>
-						REAL BRICKS. A FEW PROPS.
-					</p>
-					<h1>
-						Model <em>in</em> motion.
-					</h1>
+	if (compact)
+		return (
+			<div className='space-y-4'>
+				<div className='grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto]'>
+					<div className='min-w-0'>{modelControl}</div>
+					<div className='min-w-0'>{effectControl}</div>
+					<div className='col-span-2 sm:col-span-1'>
+						<Toggle
+							label='Spin'
+							checked={settings.spinEnabled}
+							onChange={(value) => update('spinEnabled', value)}
+						/>
+					</div>
 				</div>
-				<p className='m-0 text-sm leading-7 text-slate-500 max-[760px]:mt-3.5'>
-					Pick a model. Give it a little motion.
+				{viewport}
+				{playbackButtons}
+			</div>
+		)
+	return (
+		<div className='mx-auto w-full max-w-7xl px-5 py-8 sm:px-8'>
+			<div className='mb-7'>
+				<h1 className='text-3xl font-semibold tracking-tight'>Playground</h1>
+				<p className='mt-2 text-sm text-fd-muted-foreground'>
+					Shape an effect, then use it in your scene.
 				</p>
-			</section>
-			<div className='grid h-[clamp(440px,68dvh,800px)] grid-cols-[minmax(0,1fr)_310px] border border-slate-400 bg-slate-100 shadow-lg max-[760px]:flex max-[760px]:h-auto max-[760px]:flex-col'>
-				<section
-					className='flex min-h-0 min-w-0 flex-col p-3.5 max-[760px]:h-[clamp(320px,65dvh,600px)] max-[760px]:flex-none'
-					aria-label='Live model viewport'
-				>
-					<div className='flex shrink-0 justify-between gap-4 font-mono text-xs text-slate-500 pb-3 max-[760px]:gap-2'>
-						<span>
-							<b className='text-red-700'>01</b> / LIVE VIEWPORT
-						</span>
-						<span>DRAG TO ORBIT · SCROLL TO ZOOM</span>
-					</div>
-					<div className='relative min-h-0 flex-1 overflow-hidden border border-slate-300 bg-slate-200'>
-						<ModelErrorBoundary
-							key={`${model.id}-${attempt}`}
-							retry={retry}
-							onError={failed}
-						>
-							<Canvas camera={{ fov: 38, position: [250, 175, 310] }}>
-								<color attach='background' args={['#e2e8f0']} />
-								<ambientLight intensity={1.6} />
-								<directionalLight intensity={2.3} position={[120, 230, 160]} />
-								<Suspense fallback={<Loading onPending={pending} />}>
-									<ModelScene
-										src={src}
-										center={center}
-										edges={edges}
-										xyzPreview={xyzPreview}
-										motion={motion}
-										reducedMotion={reducedMotion}
-										explosion={explosion}
-										assembly={assembly}
-										effectController={effectController}
-										driveEffect={
-											driveEffect && controllerSource && effect !== 'none'
-										}
-										positionX={positionX}
-										rotationY={rotationY}
-										scale={scale}
-										onReady={ready}
-									/>
-								</Suspense>
-							</Canvas>
-						</ModelErrorBoundary>
-						<div
-							className='model-status'
-							role='status'
-							data-testid='model-status'
-							data-status={status === 'Model ready' ? 'ready' : 'pending'}
-						>
-							<i
-								className={
-									status === 'Model ready'
-										? 'size-2 rounded-full bg-emerald-600'
-										: 'size-2 rounded-full bg-amber-600'
-								}
-							/>
-							{status}
-						</div>
-						<div className='pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2'>
-							<label className='axis-preview-toggle'>
-								<input
-									aria-label='XYZ preview'
-									type='checkbox'
-									checked={xyzPreview}
-									onChange={(event) => setXyzPreview(event.target.checked)}
-								/>
-								<span>XYZ preview</span>
-							</label>
-							{xyzPreview && (
-								<figure
-									className='m-0 font-mono text-xs tracking-wide text-slate-500'
-									aria-label='coordinate axes'
-								>
-									<span className='mr-2 font-bold text-orange-700'>X</span>
-									<span className='mr-2 font-bold text-green-700'>Y</span>
-									<span className='mr-2 font-bold text-blue-700'>Z</span>
-								</figure>
-							)}
-						</div>
-					</div>
-					<div className='flex shrink-0 justify-between gap-4 font-mono text-xs text-slate-500 pt-3 max-[760px]:gap-2'>
-						<span>
-							{model.set} / <b className='text-slate-900'>{model.title}</b>
-						</span>
-						<a
-							className='no-underline'
-							href='https://library.ldraw.org/omr/sets'
-							target='_blank'
-							rel='noreferrer'
-						>
-							LDRAW OMR ↗
-						</a>
-					</div>
-				</section>
+			</div>
+			<div className='grid min-w-0 gap-7 lg:grid-cols-[minmax(0,1fr)_21rem]'>
+				<div className='min-w-0 self-start lg:sticky lg:top-20'>{viewport}</div>
 				<aside
-					className='min-h-0 overflow-y-auto border-l border-slate-300 p-4 overscroll-contain [scrollbar-gutter:stable] max-[760px]:overflow-visible max-[760px]:border-t max-[760px]:border-l-0 max-[760px]:border-slate-300'
 					aria-label='Model controls'
+					className='controls-scroll min-w-0 space-y-6 lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto lg:pr-3'
 				>
-					<div className='mb-5'>
-						<p className='mb-2 text-xs font-mono font-bold tracking-wider text-red-700'>
-							CONSUMER INPUT
-						</p>
-						<h2>Model setup</h2>
-					</div>
-					<section className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
-						<label
-							className='grid gap-2 font-mono text-xs font-bold'
-							htmlFor='model-select'
-						>
-							Model
-							<select
-								aria-label='Model'
-								className='w-full px-2 py-3'
-								id='model-select'
-								value={model.id}
-								onChange={(e) => {
-									pending()
-									setModelId(e.target.value)
-								}}
+					<ControlGroup title='Model'>
+						{modelControl}
+						{effectControl}
+					</ControlGroup>
+					{settings.effectType !== 'none' && (
+						<>
+							<ControlGroup title='Playback'>
+								<fieldset className='m-0 border-0 p-0'>
+									<legend className='sr-only'>Playback mode</legend>
+									<div className='grid grid-cols-2 gap-1 rounded-lg bg-fd-secondary p-1'>
+										{(['automatic', 'manual'] as const).map((mode) => (
+											<label
+												key={mode}
+												className='flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-2 text-sm has-checked:bg-fd-background has-checked:shadow-sm has-focus-visible:ring-2 has-focus-visible:ring-fd-ring'
+											>
+												<input
+													type='radio'
+													name='playback-mode'
+													value={mode}
+													checked={settings.mode === mode}
+													onChange={() => changeMode(mode)}
+													className='size-3.5 accent-fd-primary'
+												/>
+												<span>
+													{mode === 'automatic' ? 'Automatic' : 'Manual'}
+												</span>
+											</label>
+										))}
+									</div>
+								</fieldset>
+								{settings.mode === 'manual' ? (
+									<Slider
+										label='Effect progress'
+										min={0}
+										max={1}
+										step={0.001}
+										value={settings.progress}
+										onChange={(value) => {
+											actualProgress.current = value
+											update('progress', value)
+										}}
+									/>
+								) : (
+									<>
+										<div className='grid grid-cols-2 gap-3'>
+											<NumberField
+												label='Duration (seconds)'
+												min={0.1}
+												value={settings.duration}
+												onChange={(value) => update('duration', value)}
+											/>
+											<NumberField
+												label='Hold (seconds)'
+												min={0}
+												value={settings.hold}
+												onChange={(value) => update('hold', value)}
+											/>
+										</div>
+										<label className='control-field'>
+											Direction
+											<select
+												className='control-input'
+												aria-label='Playback direction'
+												value={settings.direction}
+												onChange={(event) =>
+													update(
+														'direction',
+														event.currentTarget
+															.value as PlaygroundSettings['direction'],
+													)
+												}
+											>
+												<option value='forward'>Forward</option>
+												<option value='reverse'>Reverse</option>
+												<option value='alternate'>Alternate</option>
+											</select>
+										</label>
+										<Toggle
+											label='Repeat'
+											checked={settings.repeat}
+											onChange={(value) => update('repeat', value)}
+										/>
+										{playbackButtons}
+									</>
+								)}
+							</ControlGroup>
+							<ControlGroup
+								title={
+									settings.effectType === 'assembly'
+										? 'Assembly shape'
+										: 'Explosion shape'
+								}
 							>
-								{models.map((item) => (
-									<option key={item.id} value={item.id}>
-										{item.label} · {item.complexity}
-									</option>
-								))}
-							</select>
-						</label>
-						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
-							Parts resolve from the LDraw library. A missing part fails the
-							draw; fix its availability and retry.
-						</p>
-					</section>
-					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
-						<legend>Display & playback</legend>
+								{settings.effectType === 'assembly' ? (
+									<>
+										<div className='grid grid-cols-2 gap-3'>
+											<AxisSelect
+												label='Assembly axis'
+												value={settings.assemblyAxis}
+												onChange={(value) => update('assemblyAxis', value)}
+											/>
+											<label className='control-field'>
+												Order
+												<select
+													className='control-input'
+													aria-label='Assembly order'
+													value={settings.assemblyDirection}
+													onChange={(event) =>
+														update(
+															'assemblyDirection',
+															event.currentTarget
+																.value as PlaygroundSettings['assemblyDirection'],
+														)
+													}
+												>
+													<option value='ascending'>Ascending</option>
+													<option value='descending'>Descending</option>
+												</select>
+											</label>
+										</div>
+										<label className='control-field'>
+											Entrance
+											<select
+												className='control-input'
+												aria-label='Assembly entrance'
+												value={settings.entrance}
+												onChange={(event) =>
+													update(
+														'entrance',
+														event.currentTarget
+															.value as PlaygroundSettings['entrance'],
+													)
+												}
+											>
+												<option value='instant'>Instant</option>
+												<option value='translate'>Translate</option>
+											</select>
+										</label>
+										{settings.entrance === 'translate' && (
+											<NumberField
+												label='Entrance offset Y (LU)'
+												value={settings.offsetY}
+												onChange={(value) => update('offsetY', value)}
+											/>
+										)}
+									</>
+								) : (
+									<>
+										<Toggle
+											label='Use distance units'
+											checked={!settings.relativeDistance}
+											onChange={(value) => update('relativeDistance', !value)}
+										/>
+										{settings.relativeDistance ? (
+											<NumberField
+												label='Distance multiplier'
+												min={0}
+												value={settings.distanceMultiplier}
+												onChange={(value) =>
+													update('distanceMultiplier', value)
+												}
+											/>
+										) : (
+											<NumberField
+												label='Explosion distance'
+												min={0}
+												value={settings.distance}
+												onChange={(value) => update('distance', value)}
+											/>
+										)}
+										<NumberField
+											label='Explosion rotation (degrees)'
+											min={0}
+											step={1}
+											value={settings.explosionRotation}
+											onChange={(value) => update('explosionRotation', value)}
+										/>
+									</>
+								)}
+								<label className='control-field'>
+									Easing
+									<select
+										className='control-input'
+										aria-label='Easing'
+										value={
+											typeof settings.easing === 'string'
+												? settings.easing
+												: 'custom'
+										}
+										onChange={(event) =>
+											update(
+												'easing',
+												event.currentTarget.value === 'custom'
+													? customCurve
+													: (event.currentTarget.value as BrickEffectEasing),
+											)
+										}
+									>
+										{easingNames.map((name) => (
+											<option key={name} value={name}>
+												{name}
+											</option>
+										))}
+										<option value='custom'>Custom Bézier</option>
+									</select>
+								</label>
+								{typeof settings.easing !== 'string' && (
+									<BezierEditor
+										value={settings.easing}
+										onChange={(value) => update('easing', value)}
+									/>
+								)}
+								<Slider
+									label='Randomness'
+									min={0}
+									max={1}
+									step={0.01}
+									value={settings.randomness}
+									onChange={(value) => update('randomness', value)}
+								/>
+								<NumberField
+									label='Seed'
+									min={0}
+									max={4294967295}
+									step={1}
+									integer
+									value={settings.seed}
+									onChange={(value) => update('seed', value)}
+								/>
+							</ControlGroup>
+						</>
+					)}
+					<ControlGroup title='Appearance'>
 						<Toggle
 							label='Center bounds'
-							checked={center}
-							onChange={setCenter}
+							checked={settings.center}
+							onChange={(value) => update('center', value)}
 						/>
-						<Toggle label='Edge lines' checked={edges} onChange={setEdges} />
-						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
+						<Toggle
+							label='Edge lines'
+							checked={settings.edges}
+							onChange={(value) => update('edges', value)}
+						/>
+						<label className='control-field'>
 							Reduced motion
 							<select
+								className='control-input'
 								aria-label='Reduced motion'
-								value={reducedMotion}
-								onChange={(e) =>
-									setReducedMotion(e.target.value as typeof reducedMotion)
+								value={settings.reducedMotion}
+								onChange={(event) =>
+									update(
+										'reducedMotion',
+										event.currentTarget
+											.value as PlaygroundSettings['reducedMotion'],
+									)
 								}
 							>
 								<option value='system'>Follow system</option>
@@ -591,191 +452,132 @@ export default function App() {
 								<option value='never'>Allow motion</option>
 							</select>
 						</label>
-					</fieldset>
-					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
-						<legend>Construction effects</legend>
-						<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
-							Effect
-							<select
-								aria-label='Construction effect'
-								value={effect}
-								onChange={(event) =>
-									setEffect(event.target.value as typeof effect)
-								}
-							>
-								<option value='none'>None</option>
-								<option value='explosion'>Explosion</option>
-								<option value='assembly'>Assembly</option>
-							</select>
-						</label>
-						<Slider
-							label='Effect progress'
-							min={0}
-							max={1}
-							step={0.01}
-							value={effectProgress}
-							onChange={setEffectProgress}
-						/>
-						{effect === 'explosion' && (
-							<>
-								<Toggle
-									label='Use distance units'
-									checked={!relativeDistance}
-									onChange={(checked) => setRelativeDistance(!checked)}
-								/>
-								<label className='flex min-h-9 items-center justify-between gap-3 font-mono text-xs'>
-									{relativeDistance
-										? 'Distance multiplier'
-										: 'Explosion distance (LU)'}
-									<input
-										aria-label={
-											relativeDistance
-												? 'Distance multiplier'
-												: 'Explosion distance'
-										}
-										type='number'
-										min={0}
-										step={relativeDistance ? 0.1 : 1}
-										value={
-											relativeDistance ? explosionMultiplier : explosionDistance
-										}
-										onChange={(event) => {
-											const value = event.currentTarget.valueAsNumber
-											if (Number.isFinite(value) && value >= 0)
-												(relativeDistance
-													? setExplosionMultiplier
-													: setExplosionDistance)(value)
-										}}
-									/>
-								</label>
-							</>
-						)}
-						<Toggle
-							label='Use controller source'
-							checked={controllerSource}
-							onChange={setControllerSource}
-						/>
-						<Toggle
-							label='Drive from consumer useFrame'
-							checked={driveEffect}
-							onChange={setDriveEffect}
-						/>
-						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
-							The slider seeks either public progress source. The optional frame
-							driver is owned by this playground and stops when disabled.
-						</p>
-					</fieldset>
-
-					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
-						<legend>Motion</legend>
-						<Toggle
-							label='Float'
-							checked={floatEnabled}
-							onChange={setFloatEnabled}
-						/>
-						<AxisSelect
-							label='Float axis'
-							value={floatAxis}
-							onChange={setFloatAxis}
-						/>
-						<Slider
-							label='Float amplitude'
-							min={0}
-							max={30}
-							step={0.5}
-							value={amplitude}
-							onChange={setAmplitude}
-							unit=' LU'
-						/>
-						<Slider
-							label='Float speed'
-							min={-2}
-							max={2}
-							step={0.1}
-							value={floatSpeed}
-							onChange={setFloatSpeed}
-							unit=' rad/s'
-						/>
+					</ControlGroup>
+					<ControlGroup title='Motion'>
 						<Toggle
 							label='Spin'
-							checked={spinEnabled}
-							onChange={setSpinEnabled}
+							checked={settings.spinEnabled}
+							onChange={(value) => update('spinEnabled', value)}
 						/>
-						<AxisSelect
-							label='Spin axis'
-							value={spinAxis}
-							onChange={setSpinAxis}
+						{settings.spinEnabled && (
+							<div className='grid grid-cols-2 gap-3'>
+								<AxisSelect
+									label='Spin axis'
+									value={settings.spinAxis}
+									onChange={(value) => update('spinAxis', value)}
+								/>
+								<NumberField
+									label='Spin speed (rad/s)'
+									value={settings.spinSpeed}
+									onChange={(value) => update('spinSpeed', value)}
+								/>
+							</div>
+						)}
+						<Toggle
+							label='Float'
+							checked={settings.floatEnabled}
+							onChange={(value) => update('floatEnabled', value)}
 						/>
-						<Slider
-							label='Spin speed'
-							min={-1}
-							max={1}
-							step={0.05}
-							value={spinSpeed}
-							onChange={setSpinSpeed}
-							unit=' rad/s'
-						/>
-						<p className='mt-2 mb-0 text-xs leading-6 text-slate-500'>
-							Axes follow the base transform. Changing an axis restarts that
-							preset.
-						</p>
-					</fieldset>
-					<fieldset className='mb-5 min-w-0 border-0 border-b border-slate-300 pb-5 last:mb-0 last:border-b-0'>
-						<legend>Transform</legend>
+						{settings.floatEnabled && (
+							<>
+								<AxisSelect
+									label='Float axis'
+									value={settings.floatAxis}
+									onChange={(value) => update('floatAxis', value)}
+								/>
+								<div className='grid grid-cols-2 gap-3'>
+									<NumberField
+										label='Float amplitude'
+										min={0}
+										value={settings.amplitude}
+										onChange={(value) => update('amplitude', value)}
+									/>
+									<NumberField
+										label='Float speed (rad/s)'
+										value={settings.floatSpeed}
+										onChange={(value) => update('floatSpeed', value)}
+									/>
+								</div>
+							</>
+						)}
+					</ControlGroup>
+					<ControlGroup title='Model transform'>
 						<Slider
 							label='Position X'
 							min={-80}
 							max={80}
-							value={positionX}
-							onChange={setPositionX}
 							unit=' LU'
+							value={settings.positionX}
+							onChange={(value) => update('positionX', value)}
 						/>
 						<Slider
 							label='Rotation Y'
 							min={-180}
 							max={180}
-							value={rotationY}
-							onChange={setRotationY}
 							unit='°'
+							value={settings.rotationY}
+							onChange={(value) => update('rotationY', value)}
 						/>
 						<Slider
 							label='Uniform scale'
 							min={0.5}
 							max={2}
 							step={0.05}
-							value={scale}
-							onChange={setScale}
 							unit='×'
+							value={settings.scale}
+							onChange={(value) => update('scale', value)}
 						/>
-					</fieldset>
+					</ControlGroup>
 				</aside>
 			</div>
 			<section
-				className='mt-4 grid grid-cols-[145px_minmax(0,1fr)_250px] items-center gap-5 bg-slate-900 p-5 text-slate-100 max-[760px]:grid-cols-1 max-[760px]:gap-3'
-				aria-label='Consumer code example'
+				aria-label='Generated React code'
+				className='mt-10 min-w-0 border-t pt-7'
 			>
-				<p className='mb-2 text-xs font-mono font-bold tracking-wider text-red-300'>
-					02 / PUBLIC API
+				<div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+					<div>
+						<h2 className='text-xl font-semibold tracking-tight'>React code</h2>
+						<p className='mt-1 text-sm text-fd-muted-foreground'>
+							The same configuration as the viewport.{' '}
+							<a
+								className='underline underline-offset-4'
+								href='/docs/controllers'
+							>
+								Drive it with a controller
+							</a>
+							.
+						</p>
+					</div>
+					<button
+						type='button'
+						className='ui-button'
+						onClick={async () => {
+							try {
+								await navigator.clipboard.writeText(code)
+								setCopied('Copied code.')
+							} catch {
+								setCopied('Copy failed. Select the code to copy it.')
+							}
+						}}
+					>
+						Copy code
+					</button>
+				</div>
+				<p
+					role='status'
+					aria-label='Code copy status'
+					className='mb-2 min-h-4 text-xs text-fd-muted-foreground'
+				>
+					{copied}
 				</p>
-				<pre className='m-0 overflow-x-auto font-mono text-xs leading-6'>
-					<code>{`<BrickModel src="${src}" center={${center}} edges={${edges}}
-  position={[${positionX}, 0, 0]} rotation={[0, ${(rotationY * Math.PI) / 180}, 0]} scale={${scale}}
-  reducedMotion="${reducedMotion}"
-  motion={${JSON.stringify(motion)}}
-  ${effect === 'explosion' ? `effect={{ type: 'explosion', ${controllerSource ? 'controller' : `progress: ${effectProgress}`}, ${relativeDistance ? `distanceMultiplier: ${explosionMultiplier}` : `distance: ${explosionDistance}`} }}` : effect === 'assembly' ? `effect={{ type: 'assembly', ${controllerSource ? 'controller' : `progress: ${effectProgress}`}, entrance: 'translate', offset: [0, 28, 0], easing: 'smoothstep' }}` : ''} />`}</code>
-				</pre>
-				<pre className='m-0 overflow-x-auto font-mono text-xs leading-6'>
-					<code>{`import { useFrame } from '@react-three/fiber'\nimport { BrickModel, createBrickEffectController } from 'brickinetic'\n\nconst controller = createBrickEffectController()\n\n// Inside a component within your Canvas:\nuseFrame((_, delta) => {\n  controller.setProgress(controller.getProgress() + delta * 0.1)\n})\n\n<BrickModel src="${src}" effect={{ type: 'explosion', controller }} />`}</code>
-				</pre>
-				<p className='m-0 text-xs leading-6 text-slate-400'>
-					Use inside your Canvas and Suspense boundary. Missing parts reach your
-					error boundary.
-				</p>
+				<div data-testid='generated-code' aria-busy={code !== deferredCode}>
+					<DynamicCodeBlock
+						lang='tsx'
+						code={deferredCode}
+						codeblock={{ allowCopy: false }}
+					/>
+				</div>
 			</section>
-			<footer>
-				<span>BRICKINETIC · MODEL EXPLORER</span>
-				<a href='/models/README.md'>Model provenance & licenses ↗</a>
-			</footer>
-		</main>
+		</div>
 	)
 }

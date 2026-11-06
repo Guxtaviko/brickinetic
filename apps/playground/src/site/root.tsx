@@ -1,5 +1,6 @@
 import { RootProvider } from 'fumadocs-ui/provider/react-router'
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router'
+import '@fontsource-variable/geist/index.css'
 import '../styles/globals.css'
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -13,7 +14,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Meta />
 				<Links />
 			</head>
-			<body>
+			<body className='m-0 bg-fd-background font-body text-fd-foreground'>
 				<a href='#content' className='sr-only focus:not-sr-only'>
 					Skip to content
 				</a>

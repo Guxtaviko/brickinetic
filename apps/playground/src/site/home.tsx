@@ -15,48 +15,48 @@ export const meta = () => [
 export default function Home() {
 	return (
 		<HomeLayout {...layoutOptions}>
-			<div id='content' className='mx-auto w-full max-w-7xl px-5 py-12 sm:px-8'>
-				<div className='mb-8 max-w-2xl'>
-					<h1 className='text-balance text-4xl font-semibold tracking-tight sm:text-5xl'>
-						LDraw models, set in motion.
-					</h1>
-					<p className='mt-4 text-lg text-fd-muted-foreground'>
-						Render bricks with React Three Fiber. Build an assembly, pull it
-						apart, or seek to any moment.
-					</p>
-					<div className='mt-6 flex flex-wrap gap-3'>
-						<Link
-							className='rounded-lg bg-fd-primary px-4 py-2 text-sm font-medium text-fd-primary-foreground'
-							to='/playground'
-						>
-							Open playground
-						</Link>
-						<Link
-							className='rounded-lg border px-4 py-2 text-sm font-medium'
-							to='/docs'
-						>
-							Read the guide
-						</Link>
+			<div
+				id='content'
+				className='mx-auto w-full max-w-7xl px-5 py-10 sm:px-8 lg:py-12'
+			>
+				<div className='grid items-start gap-8 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)] lg:gap-x-10'>
+					<div className='max-w-xl lg:col-start-1 lg:row-start-1'>
+						<h1 className='text-balance text-4xl font-semibold tracking-tight sm:text-5xl'>
+							LDraw models, set in motion.
+						</h1>
+						<p className='mt-4 text-lg leading-relaxed text-fd-muted-foreground'>
+							Render bricks with React Three Fiber. Build an assembly, pull it
+							apart, or seek to any moment.
+						</p>
+						<div className='mt-6 flex flex-wrap gap-3'>
+							<Link
+								className='rounded-lg bg-fd-primary px-4 py-2 text-sm font-medium text-fd-primary-foreground'
+								to='/playground'
+							>
+								Open playground
+							</Link>
+							<Link
+								className='rounded-lg border px-4 py-2 text-sm font-medium'
+								to='/docs'
+							>
+								Read the guide
+							</Link>
+						</div>
 					</div>
+					<div className='min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1'>
+						<ClientPlayground compact />
+					</div>
+					<section className='min-w-0 lg:col-start-1 lg:row-start-2'>
+						<h2 className='mb-4 text-xl font-semibold tracking-tight'>
+							Start with your Canvas
+						</h2>
+						<QuickstartExample />
+						<p className='mt-4 text-sm leading-relaxed text-fd-muted-foreground'>
+							You own the scene, camera, lighting and render loop. Brickinetic
+							handles the model and its effects.
+						</p>
+					</section>
 				</div>
-				<div className='home-preview overflow-hidden rounded-xl border'>
-					<ClientPlayground />
-				</div>
-				<section className='mt-12 max-w-3xl'>
-					<h2 className='mb-4 text-2xl font-semibold tracking-tight'>
-						Start with your Canvas
-					</h2>
-					<QuickstartExample />
-					<p className='mt-4 text-fd-muted-foreground'>
-						You own the scene, camera, lighting and render loop. Brickinetic
-						handles the LDraw model and its effects.
-					</p>
-				</section>
-				<p className='mt-8 text-sm text-fd-muted-foreground'>
-					<a className='underline underline-offset-4' href='/models/README.md'>
-						Model provenance and licenses
-					</a>
-				</p>
 			</div>
 		</HomeLayout>
 	)

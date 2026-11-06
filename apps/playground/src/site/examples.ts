@@ -7,13 +7,15 @@ export const quickstartModel = {
 } satisfies BrickModelProps
 
 export const quickstartCode = `import { Canvas } from '@react-three/fiber'
-import { BrickModel, type BrickModelProps } from 'brickinetic'
-
-const model: BrickModelProps = ${JSON.stringify(quickstartModel, null, 2)}
+import { BrickModel } from 'brickinetic'
 
 export function Scene() {
-  return <Canvas camera={{ position: [0, 0, 300] }}>
-    <ambientLight intensity={2} />
-    <BrickModel {...model} />
-  </Canvas>
+  return (
+    <Canvas camera={{ position: [0, 0, 300] }}>
+      <ambientLight intensity={2} />
+      <BrickModel src="${quickstartModel.src}" center={${quickstartModel.center}}
+        effect={{ type: '${quickstartModel.effect.type}',
+          playback: { duration: ${quickstartModel.effect.playback.duration} } }} />
+    </Canvas>
+  )
 }`

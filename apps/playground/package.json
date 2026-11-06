@@ -12,20 +12,22 @@
 		"format": "biome format --write .",
 		"check": "biome check .",
 		"preview": "vite preview --outDir dist/client",
-		"verify:offline": "tsx scripts/verify-offline-fixture.ts"
+		"verify:offline": "tsx scripts/verify-offline-fixture.ts",
+		"test": "node --import tsx --test spec/unit/*.spec.ts"
 	},
 	"dependencies": {
+		"@fontsource-variable/geist": "5.2.8",
 		"@react-three/fiber": "catalog:",
 		"brickinetic": "workspace:*",
 		"fumadocs-core": "16.18.1",
 		"fumadocs-mdx": "15.5.0",
 		"fumadocs-typescript": "5.6.0",
 		"fumadocs-ui": "16.18.1",
+		"isbot": "^5",
 		"react": "catalog:",
 		"react-dom": "catalog:",
 		"react-router": "8.5.1",
-		"three": "catalog:",
-		"isbot": "^5"
+		"three": "catalog:"
 	},
 	"devDependencies": {
 		"@playwright/test": "1.64.1",

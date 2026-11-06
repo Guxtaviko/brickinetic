@@ -43,3 +43,19 @@ test('prerendered docs and static browser search work without a runtime server',
 			.first(),
 	).toBeVisible()
 })
+
+test('the production playground hydrates without recoverable errors', async ({
+	page,
+}) => {
+	const errors: string[] = []
+	page.on('pageerror', (error) => errors.push(error.message))
+	await page.route('**/models/*.mpd', (route) =>
+		route.fulfill({
+			contentType: 'text/plain',
+			body: '0 FILE test.ldr\n4 4 10 20 30 20 20 30 20 30 30 10 30 30\n',
+		}),
+	)
+	await page.goto('http://127.0.0.1:4184/playground')
+	await expect(page.getByTestId('model-status')).toContainText('Model ready')
+	expect(errors).toEqual([])
+})
